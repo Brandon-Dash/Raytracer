@@ -163,6 +163,7 @@ void mouse( int button, int state, int x, int y ) {
 			} else {
 				std::cout << "MISS @ ( " << uvw.x << "," << uvw.y << "," << uvw.z << " )\n";
 			}
+			std::cout << std::endl;
 			break;
 		}
 	}
