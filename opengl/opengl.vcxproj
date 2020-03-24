@@ -85,37 +85,27 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <Text Include="ReadMe.txt" />
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="..\src\common.h" />
+    <ClInclude Include="..\src\json.hpp" />
+    <ClInclude Include="..\src\raytracer.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\example8.cpp" />
     <ClCompile Include="..\src\main.cpp" />
+    <ClCompile Include="..\src\q1.cpp" />
+    <ClCompile Include="..\src\raytracer.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\src\fshader1.glsl" />
-    <None Include="..\src\fshader2.glsl" />
-    <None Include="..\src\fshader3gouraud.glsl" />
-    <None Include="..\src\fshader4blinn.glsl" />
-    <None Include="..\src\fshader5.glsl" />
-    <None Include="..\src\fshader5red.glsl" />
-    <None Include="..\src\fshader6.glsl" />
-    <None Include="..\src\fshader7.glsl" />
-    <None Include="..\src\fshader8cube.glsl" />
-    <None Include="..\src\fshader8height.glsl" />
-    <None Include="..\src\vshader1.glsl" />
-    <None Include="..\src\vshader2.glsl" />
-    <None Include="..\src\vshader3gouraud.glsl" />
-    <None Include="..\src\vshader4blinn.glsl" />
-    <None Include="..\src\vshader5.glsl" />
-    <None Include="..\src\vshader6.glsl" />
-    <None Include="..\src\vshader7.glsl" />
-    <None Include="..\src\vshader8cube.glsl" />
-    <None Include="..\src\vshader8height.glsl" />
+    <None Include="..\src\f.glsl" />
+    <None Include="..\src\scenes\c.json" />
+    <None Include="..\src\scenes\d.json" />
+    <None Include="..\src\scenes\e.json" />
+    <None Include="..\src\scenes\f.json" />
+    <None Include="..\src\scenes\g.json" />
+    <None Include="..\src\scenes\h.json" />
+    <None Include="..\src\scenes\i.json" />
+    <None Include="..\src\v.glsl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

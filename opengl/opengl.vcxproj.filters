@@ -13,9 +13,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-  </ItemGroup>
-  <ItemGroup>
-    <Text Include="ReadMe.txt" />
+    <Filter Include="Scenes">
+      <UniqueIdentifier>{1a1dcb52-4863-4e0c-83fd-c6b8d7938606}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stdafx.h">
@@ -24,75 +24,54 @@
     <ClInclude Include="targetver.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\json.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\raytracer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\common.h">
-      <Filter>Source Files</Filter>
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\example8.cpp">
+    <ClCompile Include="..\src\q1.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\raytracer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\src\fshader1.glsl">
+    <None Include="..\src\f.glsl">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="..\src\vshader1.glsl">
+    <None Include="..\src\v.glsl">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="..\src\fshader2.glsl">
-      <Filter>Resource Files</Filter>
+    <None Include="..\src\scenes\c.json">
+      <Filter>Scenes</Filter>
     </None>
-    <None Include="..\src\vshader2.glsl">
-      <Filter>Resource Files</Filter>
+    <None Include="..\src\scenes\d.json">
+      <Filter>Scenes</Filter>
     </None>
-    <None Include="..\src\vshader3gouraud.glsl">
-      <Filter>Resource Files</Filter>
+    <None Include="..\src\scenes\e.json">
+      <Filter>Scenes</Filter>
     </None>
-    <None Include="..\src\fshader3gouraud.glsl">
-      <Filter>Resource Files</Filter>
+    <None Include="..\src\scenes\f.json">
+      <Filter>Scenes</Filter>
     </None>
-    <None Include="..\src\fshader4blinn.glsl">
-      <Filter>Resource Files</Filter>
+    <None Include="..\src\scenes\g.json">
+      <Filter>Scenes</Filter>
     </None>
-    <None Include="..\src\vshader4blinn.glsl">
-      <Filter>Resource Files</Filter>
+    <None Include="..\src\scenes\h.json">
+      <Filter>Scenes</Filter>
     </None>
-    <None Include="..\src\vshader5.glsl">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="..\src\fshader5red.glsl">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="..\src\fshader5.glsl">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="..\src\fshader6.glsl">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="..\src\vshader6.glsl">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="..\src\fshader7.glsl">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="..\src\vshader7.glsl">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="..\src\fshader8cube.glsl">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="..\src\fshader8height.glsl">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="..\src\vshader8cube.glsl">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="..\src\vshader8height.glsl">
-      <Filter>Resource Files</Filter>
+    <None Include="..\src\scenes\i.json">
+      <Filter>Scenes</Filter>
     </None>
   </ItemGroup>
 </Project>
