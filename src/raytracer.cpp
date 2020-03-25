@@ -99,11 +99,8 @@ void light(const point3 &p, const point3 &V, const point3 &N, json &material, co
 		json &light = *it;
 
 		if (light["type"] == "ambient") {
-			std::vector<float> amb = material["ambient"];
-			colour3 Ka = vector_to_vec3(amb);
-
-			std::vector<float> col = light["color"];
-			colour3 Ia = vector_to_vec3(col);
+			colour3 Ka = vector_to_vec3(material["ambient"]);
+			colour3 Ia = vector_to_vec3(light["color"]);
 
 			colour3 ambient = Ia * Ka;
 			colour = colour + ambient;
@@ -111,17 +108,12 @@ void light(const point3 &p, const point3 &V, const point3 &N, json &material, co
 
 		else if (light["type"] == "directional") {
 
-			std::vector<float> col = light["color"];
-			colour3 Id = vector_to_vec3(col);
-
-			std::vector<float> dir = light["direction"];
-			point3 direction = vector_to_vec3(dir);
-
+			colour3 Id = vector_to_vec3(light["color"]);
+			point3 direction = vector_to_vec3(light["direction"]);
 			point3 L = glm::normalize(-direction);
 
 			if (material.find("diffuse") != material.end()) {
-				std::vector<float> dif = material["diffuse"];
-				colour3 Kd = vector_to_vec3(dif);
+				colour3 Kd = vector_to_vec3(material["diffuse"]);
 
 				colour3 diffuse = Id * Kd * glm::dot(N, L);
 				for (int i = 0; i < 3; i++) {
@@ -135,17 +127,12 @@ void light(const point3 &p, const point3 &V, const point3 &N, json &material, co
 
 		else if (light["type"] == "point") {
 
-			std::vector<float> col = light["color"];
-			colour3 Id = vector_to_vec3(col);
-
-			std::vector<float> pos = light["position"];
-			point3 position = vector_to_vec3(pos);
-
+			colour3 Id = vector_to_vec3(light["color"]);
+			point3 position = vector_to_vec3(light["position"]);
 			point3 L = glm::normalize(position - p);
 
 			if (material.find("diffuse") != material.end()) {
-				std::vector<float> dif = material["diffuse"];
-				colour3 Kd = vector_to_vec3(dif);
+				colour3 Kd = vector_to_vec3(material["diffuse"]);
 
 				colour3 diffuse = Id * Kd * glm::dot(N, L);
 				for (int i = 0; i < 3; i++) {
@@ -159,24 +146,17 @@ void light(const point3 &p, const point3 &V, const point3 &N, json &material, co
 
 		else if (light["type"] == "spot") {
 
-			std::vector<float> col = light["color"];
-			colour3 Id = vector_to_vec3(col);
-
-			std::vector<float> pos = light["position"];
-			point3 position = vector_to_vec3(pos);
-
-			std::vector<float> dir = light["direction"];
-			point3 direction = vector_to_vec3(dir);
+			colour3 Id = vector_to_vec3(light["color"]);
+			point3 position = vector_to_vec3(light["position"]);
+			point3 direction = vector_to_vec3(light["direction"]);
 			direction = glm::normalize(-direction);
-
 			float cutoff_degrees = light["cutoff"];
 			float cutoff = cutoff_degrees * M_PI / 180;
 
 			point3 L = glm::normalize(position - p);
 
 			if (material.find("diffuse") != material.end()) {
-				std::vector<float> dif = material["diffuse"];
-				colour3 Kd = vector_to_vec3(dif);
+				colour3 Kd = vector_to_vec3(material["diffuse"]);
 
 				if (glm::dot(L, direction) > cos(cutoff))
 				{
@@ -241,8 +221,7 @@ bool trace(const point3 &e, const point3 &s, colour3 &colour, bool pick) {
 		// every object in the scene will have a "type"
 		if (object["type"] == "sphere") {
 			// Every sphere will have a position and a radius
-			std::vector<float> pos = object["position"];
-			point3 c = vector_to_vec3(pos);
+			point3 c = vector_to_vec3(object["position"]);
 			point3 d = s - e;
 			float r = float(object["radius"]);
 			point3 hitpos;
@@ -262,10 +241,8 @@ bool trace(const point3 &e, const point3 &s, colour3 &colour, bool pick) {
 			}
 		}
 		else if (object["type"] == "plane") {
-			std::vector<float> pos = object["position"];
-			point3 a = vector_to_vec3(pos);
-			std::vector<float> norm = object["normal"];
-			point3 n = vector_to_vec3(norm);
+			point3 a = vector_to_vec3(object["position"]);
+			point3 n = vector_to_vec3(object["normal"]);
 			point3 d = s - e;
 			point3 hitpos;
 
