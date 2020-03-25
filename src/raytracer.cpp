@@ -110,11 +110,6 @@ void light(const point3 &p, const point3 &V, const point3 &N, json &material, co
 		}
 
 		else if (light["type"] == "directional") {
-			std::vector<float> dif = material["diffuse"];
-			colour3 Kd = vector_to_vec3(dif);
-
-			//std::vector<float> spc = material["specular"];
-			//colour3 Ks = vector_to_vec3(spc);
 
 			std::vector<float> col = light["color"];
 			colour3 Id = vector_to_vec3(col);
@@ -124,21 +119,21 @@ void light(const point3 &p, const point3 &V, const point3 &N, json &material, co
 
 			point3 L = glm::normalize(-direction);
 
-			colour3 diffuse = Id * Kd * glm::dot(N, L);
-			for (int i = 0; i < 3; i++) {
-				if (diffuse[i] < 0)
-					diffuse[i] = 0;
-			}
+			if (material.find("diffuse") != material.end()) {
+				std::vector<float> dif = material["diffuse"];
+				colour3 Kd = vector_to_vec3(dif);
 
-			colour = colour + diffuse;
+				colour3 diffuse = Id * Kd * glm::dot(N, L);
+				for (int i = 0; i < 3; i++) {
+					if (diffuse[i] < 0)
+						diffuse[i] = 0;
+				}
+
+				colour = colour + diffuse;
+			}
 		}
 
 		else if (light["type"] == "point") {
-			std::vector<float> dif = material["diffuse"];
-			colour3 Kd = vector_to_vec3(dif);
-
-			//std::vector<float> spc = material["specular"];
-			//colour3 Ks = vector_to_vec3(spc);
 
 			std::vector<float> col = light["color"];
 			colour3 Id = vector_to_vec3(col);
@@ -148,21 +143,21 @@ void light(const point3 &p, const point3 &V, const point3 &N, json &material, co
 
 			point3 L = glm::normalize(position - p);
 
-			colour3 diffuse = Id * Kd * glm::dot(N, L);
-			for (int i = 0; i < 3; i++) {
-				if (diffuse[i] < 0)
-					diffuse[i] = 0;
-			}
+			if (material.find("diffuse") != material.end()) {
+				std::vector<float> dif = material["diffuse"];
+				colour3 Kd = vector_to_vec3(dif);
 
-			colour = colour + diffuse;
+				colour3 diffuse = Id * Kd * glm::dot(N, L);
+				for (int i = 0; i < 3; i++) {
+					if (diffuse[i] < 0)
+						diffuse[i] = 0;
+				}
+
+				colour = colour + diffuse;
+			}
 		}
 
 		else if (light["type"] == "spot") {
-			std::vector<float> dif = material["diffuse"];
-			colour3 Kd = vector_to_vec3(dif);
-
-			//std::vector<float> spc = material["specular"];
-			//colour3 Ks = vector_to_vec3(spc);
 
 			std::vector<float> col = light["color"];
 			colour3 Id = vector_to_vec3(col);
@@ -179,15 +174,20 @@ void light(const point3 &p, const point3 &V, const point3 &N, json &material, co
 
 			point3 L = glm::normalize(position - p);
 
-			if (glm::dot(L, direction) > cos(cutoff))
-			{
-				colour3 diffuse = Id * Kd * glm::dot(N, L);
-				for (int i = 0; i < 3; i++) {
-					if (diffuse[i] < 0)
-						diffuse[i] = 0;
-				}
+			if (material.find("diffuse") != material.end()) {
+				std::vector<float> dif = material["diffuse"];
+				colour3 Kd = vector_to_vec3(dif);
 
-				colour = colour + diffuse;
+				if (glm::dot(L, direction) > cos(cutoff))
+				{
+					colour3 diffuse = Id * Kd * glm::dot(N, L);
+					for (int i = 0; i < 3; i++) {
+						if (diffuse[i] < 0)
+							diffuse[i] = 0;
+					}
+
+					colour = colour + diffuse;
+				}
 			}
 		}
 	}
