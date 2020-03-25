@@ -9,7 +9,9 @@
 #include <glm/gtx/string_cast.hpp>
 
 #include "json.hpp"
+
 #define M_PI 3.14159265358979323846264338327950288
+#define MAX_T 1000000
 
 using json = nlohmann::json;
 
@@ -44,11 +46,11 @@ glm::vec3 vector_to_vec3(const std::vector<float> &v) {
 
 // Ray intersection functions
 
-bool hitsphere(point3 d, point3 e, point3 c, float r, point3 &hit) {
+float hitsphere(point3 d, point3 e, point3 c, float r, point3 &hit) {
 	double disc = pow(glm::dot(d, e - c), 2) - glm::dot(d, d) * (glm::dot(e - c, e - c) - r * r);
 
 	if (disc < 0)
-		return false;
+		return 0;
 
 	double rest = glm::dot(-d, e - c) / glm::dot(d, d);
 	double sqrtdisc = sqrt(disc);
@@ -67,21 +69,21 @@ bool hitsphere(point3 d, point3 e, point3 c, float r, point3 &hit) {
 	}
 
 	hit = e + float(t) * d;
-	return true;
+	return float(t);
 }
 
-bool hitplane(point3 d, point3 e, point3 a, point3 n, point3 &hit) {
+float hitplane(point3 d, point3 e, point3 a, point3 n, point3 &hit) {
 	double numerator = glm::dot(n, a - e);
 	double denominator = glm::dot(n, d);
 	double t = numerator / denominator;
 	//double t = glm::dot(n, a - e) / glm::dot(n, d);
 
 	if (t <= 0 || numerator > 0) {
-		return false;
+		return 0;
 	}
 	else {
 		hit = e + float(t) * d;
-		return true;
+		return float(t);
 	}
 }
 
@@ -227,6 +229,10 @@ bool trace(const point3 &e, const point3 &s, colour3 &colour, bool pick) {
   // NOTE 2: You can work with JSON objects directly (like this sample code), read the JSON objects into your own data structures once and render from those (probably in choose_scene), or hard-code the objects in your own data structures and choose them by name in choose_scene; e.g. choose_scene('e') would pick the same scene as the one in "e.json". Your choice.
   // If you want to use this JSON library, https://github.com/nlohmann/json for more information. The code below gives examples of everything you should need: getting named values, iterating over arrays, and converting types.
 
+	json material = NULL;
+	point3 p, N, V;
+	float t_min = MAX_T;
+
 	// traverse the objects
 	json &objects = scene["objects"];
 	for (json::iterator it = objects.begin(); it != objects.end(); ++it) {
@@ -234,31 +240,25 @@ bool trace(const point3 &e, const point3 &s, colour3 &colour, bool pick) {
 		
 		// every object in the scene will have a "type"
 		if (object["type"] == "sphere") {
-			// This is NOT ray-sphere intersection
 			// Every sphere will have a position and a radius
 			std::vector<float> pos = object["position"];
 			point3 c = vector_to_vec3(pos);
 			point3 d = s - e;
 			float r = float(object["radius"]);
-
 			point3 hitpos;
-			bool didhit;
 
-			didhit = hitsphere(d, e, c, r, hitpos);
+			float t = hitsphere(d, e, c, r, hitpos);
 
-			if (didhit) {
+			if (t > 0 && t < t_min) {
 				if (pick)
 					std::cout << "hitpos = {" << hitpos[0] << ", " << hitpos[1] << ", " << hitpos[2] << "}" << std::endl;
 
 				// Every object will have a material
-				json &material = object["material"];
-				point3 N = glm::normalize(hitpos - c);
-				point3 V = hitpos - e;
-
-				light(hitpos, V, N, material, colour, pick);
-
-				// This is NOT correct: it finds the first hit, not the closest
-				return true;
+				material = object["material"];
+				p = hitpos;
+				N = glm::normalize(hitpos - c);
+				V = hitpos - e;
+				t_min = t;
 			}
 		}
 		else if (object["type"] == "plane") {
@@ -267,26 +267,27 @@ bool trace(const point3 &e, const point3 &s, colour3 &colour, bool pick) {
 			std::vector<float> norm = object["normal"];
 			point3 n = vector_to_vec3(norm);
 			point3 d = s - e;
-
 			point3 hitpos;
-			bool didhit;
 
-			didhit = hitplane(d, e, a, n, hitpos);
+			float t = hitplane(d, e, a, n, hitpos);
 
-			if (didhit) {
+			if (t > 0 && t < t_min) {
 				if (pick)
 					std::cout << "hitpos = {" << hitpos[0] << ", " << hitpos[1] << ", " << hitpos[2] << "}" << std::endl;
 
-				json &material = object["material"];
-				point3 N = glm::normalize(n);
-				point3 V = hitpos - e;
-
-				light(hitpos, V, N, material, colour, pick);
-
-				return true;
+				material = object["material"];
+				p = hitpos;
+				N = glm::normalize(n);
+				V = hitpos - e;
+				t_min = t;
 			}
 		}
 	}
 
-	return false;
+	if (material == NULL)
+		return false;
+
+	light(p, V, N, material, colour, pick);
+
+	return true;
 }
