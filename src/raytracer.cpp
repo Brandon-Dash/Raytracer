@@ -63,6 +63,21 @@ bool hitsphere(point3 d, point3 e, point3 c, float r, point3 &hit) {
 	return true;
 }
 
+bool hitplane(point3 d, point3 e, point3 a, point3 n, point3 &hit) {
+	double numerator = glm::dot(n, a - e);
+	double denominator = glm::dot(n, d);
+	double t = numerator / denominator;
+	//double t = glm::dot(n, a - e) / glm::dot(n, d);
+
+	if (t <= 0 || numerator > 0) {
+		return false;
+	}
+	else {
+		hit = e + float(t) * d;
+		return true;
+	}
+}
+
 /****************************************************************************/
 
 void choose_scene(char const *fn) {
@@ -112,8 +127,6 @@ bool trace(const point3 &e, const point3 &s, colour3 &colour, bool pick) {
 			// This is NOT ray-sphere intersection
 			// Every sphere will have a position and a radius
 			std::vector<float> pos = object["position"];
-			point3 p = -(s - e) * pos[2];
-
 			point3 c = vector_to_vec3(pos);
 			point3 d = s - e;
 			float r = float(object["radius"]);
@@ -138,6 +151,33 @@ bool trace(const point3 &e, const point3 &s, colour3 &colour, bool pick) {
 				colour = colour * glm::dot(N, L);
 
 				// This is NOT correct: it finds the first hit, not the closest
+				return true;
+			}
+		}
+		else if (object["type"] == "plane") {
+			std::vector<float> pos = object["position"];
+			point3 a = vector_to_vec3(pos);
+			std::vector<float> norm = object["normal"];
+			point3 n = vector_to_vec3(norm);
+			point3 d = s - e;
+
+			point3 hitpos;
+			bool didhit;
+
+			didhit = hitplane(d, e, a, n, hitpos);
+
+			if (didhit) {
+				if (pick)
+					std::cout << "hitpos = {" << hitpos[0] << ", " << hitpos[1] << ", " << hitpos[2] << "}" << std::endl;
+
+				json &material = object["material"];
+				std::vector<float> diffuse = material["diffuse"];
+				colour = vector_to_vec3(diffuse);
+
+				point3 L = glm::normalize(light - hitpos);
+				point3 N = glm::normalize(n);
+
+				colour = colour * glm::dot(N, L);
 				return true;
 			}
 		}
