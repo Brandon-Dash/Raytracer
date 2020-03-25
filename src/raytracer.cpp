@@ -9,6 +9,7 @@
 #include <glm/gtx/string_cast.hpp>
 
 #include "json.hpp"
+#define M_PI 3.14159265358979323846264338327950288
 
 using json = nlohmann::json;
 
@@ -20,6 +21,8 @@ colour3 background_colour(0, 0, 0);
 json scene;
 
 /****************************************************************************/
+
+// Helper functions
 
 json find(json &j, const std::string key, const std::string value) {
 	json::iterator it;
@@ -36,6 +39,10 @@ json find(json &j, const std::string key, const std::string value) {
 glm::vec3 vector_to_vec3(const std::vector<float> &v) {
 	return glm::vec3(v[0], v[1], v[2]);
 }
+
+/****************************************************************************/
+
+// Ray intersection functions
 
 bool hitsphere(point3 d, point3 e, point3 c, float r, point3 &hit) {
 	double disc = pow(glm::dot(d, e - c), 2) - glm::dot(d, d) * (glm::dot(e - c, e - c) - r * r);
@@ -80,6 +87,112 @@ bool hitplane(point3 d, point3 e, point3 a, point3 n, point3 &hit) {
 
 /****************************************************************************/
 
+// lighting functions
+
+void light(const point3 &p, const point3 &V, const point3 &N, json &material, colour3 &colour, bool pick) {
+	json &lights = scene["lights"];
+	colour = colour3(0.0, 0.0, 0.0);
+
+	for (json::iterator it = lights.begin(); it != lights.end(); ++it) {
+		json &light = *it;
+
+		if (light["type"] == "ambient") {
+			std::vector<float> amb = material["ambient"];
+			colour3 Ka = vector_to_vec3(amb);
+
+			std::vector<float> col = light["color"];
+			colour3 Ia = vector_to_vec3(col);
+
+			colour3 ambient = Ia * Ka;
+			colour = colour + ambient;
+		}
+
+		else if (light["type"] == "directional") {
+			std::vector<float> dif = material["diffuse"];
+			colour3 Kd = vector_to_vec3(dif);
+
+			//std::vector<float> spc = material["specular"];
+			//colour3 Ks = vector_to_vec3(spc);
+
+			std::vector<float> col = light["color"];
+			colour3 Id = vector_to_vec3(col);
+
+			std::vector<float> dir = light["direction"];
+			point3 direction = vector_to_vec3(dir);
+
+			point3 L = glm::normalize(-direction);
+
+			colour3 diffuse = Id * Kd * glm::dot(N, L);
+			for (int i = 0; i < 3; i++) {
+				if (diffuse[i] < 0)
+					diffuse[i] = 0;
+			}
+
+			colour = colour + diffuse;
+		}
+
+		else if (light["type"] == "point") {
+			std::vector<float> dif = material["diffuse"];
+			colour3 Kd = vector_to_vec3(dif);
+
+			//std::vector<float> spc = material["specular"];
+			//colour3 Ks = vector_to_vec3(spc);
+
+			std::vector<float> col = light["color"];
+			colour3 Id = vector_to_vec3(col);
+
+			std::vector<float> pos = light["position"];
+			point3 position = vector_to_vec3(pos);
+
+			point3 L = glm::normalize(position - p);
+
+			colour3 diffuse = Id * Kd * glm::dot(N, L);
+			for (int i = 0; i < 3; i++) {
+				if (diffuse[i] < 0)
+					diffuse[i] = 0;
+			}
+
+			colour = colour + diffuse;
+		}
+
+		else if (light["type"] == "spot") {
+			std::vector<float> dif = material["diffuse"];
+			colour3 Kd = vector_to_vec3(dif);
+
+			//std::vector<float> spc = material["specular"];
+			//colour3 Ks = vector_to_vec3(spc);
+
+			std::vector<float> col = light["color"];
+			colour3 Id = vector_to_vec3(col);
+
+			std::vector<float> pos = light["position"];
+			point3 position = vector_to_vec3(pos);
+
+			std::vector<float> dir = light["direction"];
+			point3 direction = vector_to_vec3(dir);
+			direction = glm::normalize(-direction);
+
+			float cutoff_degrees = light["cutoff"];
+			float cutoff = cutoff_degrees * M_PI / 180;
+
+			point3 L = glm::normalize(position - p);
+
+			if (glm::dot(L, direction) > cos(cutoff))
+			{
+				colour3 diffuse = Id * Kd * glm::dot(N, L);
+				for (int i = 0; i < 3; i++) {
+					if (diffuse[i] < 0)
+						diffuse[i] = 0;
+				}
+
+				colour = colour + diffuse;
+			}
+		}
+	}
+}
+
+/****************************************************************************/
+
 void choose_scene(char const *fn) {
 	if (fn == NULL) {
 		std::cout << "Using default input file " << PATH << "c.json\n";
@@ -114,9 +227,6 @@ bool trace(const point3 &e, const point3 &s, colour3 &colour, bool pick) {
   // NOTE 2: You can work with JSON objects directly (like this sample code), read the JSON objects into your own data structures once and render from those (probably in choose_scene), or hard-code the objects in your own data structures and choose them by name in choose_scene; e.g. choose_scene('e') would pick the same scene as the one in "e.json". Your choice.
   // If you want to use this JSON library, https://github.com/nlohmann/json for more information. The code below gives examples of everything you should need: getting named values, iterating over arrays, and converting types.
 
-	// hardcoding a light. remove this in your implementation
-	point3 light(0.5, 10, 2);
-
 	// traverse the objects
 	json &objects = scene["objects"];
 	for (json::iterator it = objects.begin(); it != objects.end(); ++it) {
@@ -142,13 +252,10 @@ bool trace(const point3 &e, const point3 &s, colour3 &colour, bool pick) {
 
 				// Every object will have a material
 				json &material = object["material"];
-				std::vector<float> diffuse = material["diffuse"];
-				colour = vector_to_vec3(diffuse);
-
-				point3 L = glm::normalize(light - hitpos);
 				point3 N = glm::normalize(hitpos - c);
+				point3 V = hitpos - e;
 
-				colour = colour * glm::dot(N, L);
+				light(hitpos, V, N, material, colour, pick);
 
 				// This is NOT correct: it finds the first hit, not the closest
 				return true;
@@ -171,13 +278,11 @@ bool trace(const point3 &e, const point3 &s, colour3 &colour, bool pick) {
 					std::cout << "hitpos = {" << hitpos[0] << ", " << hitpos[1] << ", " << hitpos[2] << "}" << std::endl;
 
 				json &material = object["material"];
-				std::vector<float> diffuse = material["diffuse"];
-				colour = vector_to_vec3(diffuse);
-
-				point3 L = glm::normalize(light - hitpos);
 				point3 N = glm::normalize(n);
+				point3 V = hitpos - e;
 
-				colour = colour * glm::dot(N, L);
+				light(hitpos, V, N, material, colour, pick);
+
 				return true;
 			}
 		}
