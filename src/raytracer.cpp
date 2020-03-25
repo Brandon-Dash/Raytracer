@@ -91,15 +91,53 @@ float hitplane(point3 d, point3 e, point3 a, point3 n, point3 &hit) {
 
 // lighting functions
 
+void addDiffuse(const colour3 &Id, const colour3 &Kd, const point3 &N, const point3 &L, colour3 &colour) {
+	colour3 diffuse = Id * Kd * glm::dot(N, L);
+	for (int i = 0; i < 3; i++) {
+		if (diffuse[i] < 0)
+			diffuse[i] = 0;
+	}
+
+	colour = colour + diffuse;
+}
+
+void addSpecular(const colour3 &Is, const colour3 &Ks, const float a, const point3 &N, const point3 &L, const point3 &V, colour3 &colour) {
+	point3 R = glm::normalize(2 * (glm::dot(N, L)) * N - L);
+	float RdotV = glm::dot(R, V);
+
+	if (RdotV > 0) {
+		colour3 specular = Is * Ks * pow(RdotV, a);
+		for (int i = 0; i < 3; i++) {
+			if (specular[i] < 0)
+				specular[i] = 0;
+		}
+
+		colour = colour + specular;
+	}
+}
+
 void light(const point3 &p, const point3 &V, const point3 &N, json &material, colour3 &colour, bool pick) {
 	json &lights = scene["lights"];
+
+	colour3 Ka, Kd, Ks = colour3(0.0, 0.0, 0.0);
+	float a = 0.0;;
+
+	if (material.find("ambient") != material.end())
+		Ka = vector_to_vec3(material["ambient"]);
+	if (material.find("diffuse") != material.end())
+		Kd = vector_to_vec3(material["diffuse"]);
+	if (material.find("specular") != material.end())
+		Ks = vector_to_vec3(material["specular"]);
+	if (material.find("shininess") != material.end())
+		a = material["shininess"];
+
+
 	colour = colour3(0.0, 0.0, 0.0);
 
 	for (json::iterator it = lights.begin(); it != lights.end(); ++it) {
 		json &light = *it;
 
 		if (light["type"] == "ambient") {
-			colour3 Ka = vector_to_vec3(material["ambient"]);
 			colour3 Ia = vector_to_vec3(light["color"]);
 
 			colour3 ambient = Ia * Ka;
@@ -107,67 +145,37 @@ void light(const point3 &p, const point3 &V, const point3 &N, json &material, co
 		}
 
 		else if (light["type"] == "directional") {
-
-			colour3 Id = vector_to_vec3(light["color"]);
+			colour3 I = vector_to_vec3(light["color"]);
 			point3 direction = vector_to_vec3(light["direction"]);
 			point3 L = glm::normalize(-direction);
 
-			if (material.find("diffuse") != material.end()) {
-				colour3 Kd = vector_to_vec3(material["diffuse"]);
-
-				colour3 diffuse = Id * Kd * glm::dot(N, L);
-				for (int i = 0; i < 3; i++) {
-					if (diffuse[i] < 0)
-						diffuse[i] = 0;
-				}
-
-				colour = colour + diffuse;
-			}
+			addDiffuse(I, Kd, N, L, colour);
+			addSpecular(I, Ks, a, N, L, V, colour);
+			
 		}
 
 		else if (light["type"] == "point") {
-
-			colour3 Id = vector_to_vec3(light["color"]);
+			colour3 I = vector_to_vec3(light["color"]);
 			point3 position = vector_to_vec3(light["position"]);
 			point3 L = glm::normalize(position - p);
 
-			if (material.find("diffuse") != material.end()) {
-				colour3 Kd = vector_to_vec3(material["diffuse"]);
-
-				colour3 diffuse = Id * Kd * glm::dot(N, L);
-				for (int i = 0; i < 3; i++) {
-					if (diffuse[i] < 0)
-						diffuse[i] = 0;
-				}
-
-				colour = colour + diffuse;
-			}
+			addDiffuse(I, Kd, N, L, colour);
+			addSpecular(I, Ks, a, N, L, V, colour);
 		}
 
 		else if (light["type"] == "spot") {
-
-			colour3 Id = vector_to_vec3(light["color"]);
 			point3 position = vector_to_vec3(light["position"]);
 			point3 direction = vector_to_vec3(light["direction"]);
 			direction = glm::normalize(-direction);
 			float cutoff_degrees = light["cutoff"];
 			float cutoff = cutoff_degrees * M_PI / 180;
-
 			point3 L = glm::normalize(position - p);
 
-			if (material.find("diffuse") != material.end()) {
-				colour3 Kd = vector_to_vec3(material["diffuse"]);
+			if (glm::dot(L, direction) > cos(cutoff)) {
+				colour3 I = vector_to_vec3(light["color"]);
 
-				if (glm::dot(L, direction) > cos(cutoff))
-				{
-					colour3 diffuse = Id * Kd * glm::dot(N, L);
-					for (int i = 0; i < 3; i++) {
-						if (diffuse[i] < 0)
-							diffuse[i] = 0;
-					}
-
-					colour = colour + diffuse;
-				}
+				addDiffuse(I, Kd, N, L, colour);
+				addSpecular(I, Ks, a, N, L, V, colour);
 			}
 		}
 	}
@@ -236,7 +244,7 @@ bool trace(const point3 &e, const point3 &s, colour3 &colour, bool pick) {
 				material = object["material"];
 				p = hitpos;
 				N = glm::normalize(hitpos - c);
-				V = hitpos - e;
+				V = glm::normalize(e - hitpos);
 				t_min = t;
 			}
 		}
@@ -255,7 +263,7 @@ bool trace(const point3 &e, const point3 &s, colour3 &colour, bool pick) {
 				material = object["material"];
 				p = hitpos;
 				N = glm::normalize(n);
-				V = hitpos - e;
+				V = glm::normalize(e - hitpos);
 				t_min = t;
 			}
 		}
