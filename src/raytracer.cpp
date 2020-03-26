@@ -11,7 +11,7 @@
 #include "json.hpp"
 
 #define M_PI 3.14159265358979323846264338327950288
-#define MAX_T 1000000.
+#define MAX_T 10000.
 
 using json = nlohmann::json;
 
