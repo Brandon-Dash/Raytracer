@@ -137,7 +137,7 @@ bool shadowTest(const point3 &point, const point3 lightPos) {
 			point3 hitpos;
 
 			float t = hitsphere(direction, point, c, r, hitpos);
-			if (t > 0.0 && t < 1.0)
+			if (t < 1.0 && t * glm::length(lightPos - point) > 1e-5)
 				return true;
 		}
 		if (object["type"] == "plane") {
@@ -146,8 +146,29 @@ bool shadowTest(const point3 &point, const point3 lightPos) {
 			point3 hitpos;
 
 			float t = hitplane(direction, point, a, n, hitpos);
-			if (t > 0.0 && t < 1.0)
+			if (t < 1.0 && t * glm::length(lightPos - point) > 1e-5)
 				return true;
+		}
+		if (object["type"] == "mesh") {
+			std::vector<json> triangles = object["triangles"];
+
+			for (int i = 0; i < triangles.size(); i++) {
+				std::vector<json> triangle = triangles[i];
+
+				point3 p1 = vector_to_vec3(triangle[0]);
+				point3 p2 = vector_to_vec3(triangle[1]);
+				point3 p3 = vector_to_vec3(triangle[2]);
+
+				point3 n = glm::cross(p2 - p1, p3 - p2);
+				point3 hitpos;
+
+				float t = hitplane(direction, point, p1, n, hitpos);
+
+				if (t < 1.0 && t * glm::length(lightPos - point) > 1e-5) {
+					if (pointInTriangle(hitpos, p1, p2, p3, n))
+						return true;
+				}
+			}
 		}
 	}
 	return false;
