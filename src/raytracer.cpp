@@ -76,7 +76,6 @@ float hitplane(point3 d, point3 e, point3 a, point3 n, point3 &hit) {
 	double numerator = glm::dot(n, a - e);
 	double denominator = glm::dot(n, d);
 	double t = numerator / denominator;
-	//double t = glm::dot(n, a - e) / glm::dot(n, d);
 
 	if (t <= 0 || numerator > 0) {
 		return 0;
@@ -85,6 +84,14 @@ float hitplane(point3 d, point3 e, point3 a, point3 n, point3 &hit) {
 		hit = e + float(t) * d;
 		return float(t);
 	}
+}
+
+bool pointInTriangle(const point3 &point, const point3 &p1, const point3 &p2, const point3 &p3, const point3 &n) {
+	float test1 = glm::dot(glm::cross(point - p1, p2 - p1), n);
+	float test2 = glm::dot(glm::cross(point - p2, p3 - p2), n);
+	float test3 = glm::dot(glm::cross(point - p3, p1 - p3), n);
+
+	return (test1 >= 0 && test2 >= 0 && test3 >= 0) || (test1 <= 0 && test2 <= 0 && test3 <= 0);
 }
 
 /****************************************************************************/
@@ -306,6 +313,34 @@ bool trace(const point3 &e, const point3 &s, colour3 &colour, bool pick) {
 				V = glm::normalize(e - hitpos);
 				t_min = t;
 			}
+		}
+		else if (object["type"] == "mesh") {
+			std::vector<json> triangles = object["triangles"];
+			
+			for (int i = 0; i < triangles.size(); i++) {
+				std::vector<json> triangle = triangles[i];
+
+				point3 p1 = vector_to_vec3(triangle[0]);
+				point3 p2 = vector_to_vec3(triangle[1]);
+				point3 p3 = vector_to_vec3(triangle[2]);
+
+				point3 n = glm::cross(p2 - p1, p3 - p2);
+				point3 d = s - e;
+				point3 hitpos;
+
+				float t = hitplane(d, e, p1, n, hitpos);
+
+				if (t > 0 && t < t_min) {
+					if (pointInTriangle(hitpos, p1, p2, p3, n)) {
+						material = object["material"];
+						p = hitpos;
+						N = glm::normalize(n);
+						V = glm::normalize(e - hitpos);
+						t_min = t;
+					}
+				}
+			}
+			
 		}
 	}
 
