@@ -11,7 +11,7 @@
 #include "json.hpp"
 
 #define M_PI 3.14159265358979323846264338327950288
-#define MAX_T 1000000
+#define MAX_T 1000000.
 
 using json = nlohmann::json;
 
@@ -116,6 +116,36 @@ void addSpecular(const colour3 &Is, const colour3 &Ks, const float a, const poin
 	}
 }
 
+bool shadowTest(const point3 &point, const point3 lightPos) {
+	point3 direction = lightPos - point;
+
+
+	json &objects = scene["objects"];
+	for (json::iterator it = objects.begin(); it != objects.end(); ++it) {
+		json &object = *it;
+
+		if (object["type"] == "sphere") {
+			point3 c = vector_to_vec3(object["position"]);
+			float r = float(object["radius"]);
+			point3 hitpos;
+
+			float t = hitsphere(direction, point, c, r, hitpos);
+			if (t > 0.0 && t < 1.0)
+				return true;
+		}
+		if (object["type"] == "plane") {
+			point3 a = vector_to_vec3(object["position"]);
+			point3 n = vector_to_vec3(object["normal"]);
+			point3 hitpos;
+
+			float t = hitplane(direction, point, a, n, hitpos);
+			if (t > 0.0 && t < 1.0)
+				return true;
+		}
+	}
+	return false;
+}
+
 void light(const point3 &p, const point3 &V, const point3 &N, json &material, colour3 &colour, bool pick) {
 	json &lights = scene["lights"];
 
@@ -145,37 +175,47 @@ void light(const point3 &p, const point3 &V, const point3 &N, json &material, co
 		}
 
 		else if (light["type"] == "directional") {
-			colour3 I = vector_to_vec3(light["color"]);
 			point3 direction = vector_to_vec3(light["direction"]);
 			point3 L = glm::normalize(-direction);
 
-			addDiffuse(I, Kd, N, L, colour);
-			addSpecular(I, Ks, a, N, L, V, colour);
-			
-		}
+			point3 lightPosition = p + float(MAX_T) * L; // virtual position of light for use in shadow test
 
-		else if (light["type"] == "point") {
-			colour3 I = vector_to_vec3(light["color"]);
-			point3 position = vector_to_vec3(light["position"]);
-			point3 L = glm::normalize(position - p);
-
-			addDiffuse(I, Kd, N, L, colour);
-			addSpecular(I, Ks, a, N, L, V, colour);
-		}
-
-		else if (light["type"] == "spot") {
-			point3 position = vector_to_vec3(light["position"]);
-			point3 direction = vector_to_vec3(light["direction"]);
-			direction = glm::normalize(-direction);
-			float cutoff_degrees = light["cutoff"];
-			float cutoff = cutoff_degrees * M_PI / 180;
-			point3 L = glm::normalize(position - p);
-
-			if (glm::dot(L, direction) > cos(cutoff)) {
+			if (!shadowTest(p, lightPosition)) {
 				colour3 I = vector_to_vec3(light["color"]);
 
 				addDiffuse(I, Kd, N, L, colour);
 				addSpecular(I, Ks, a, N, L, V, colour);
+			}
+		}
+
+		else if (light["type"] == "point") {
+			point3 position = vector_to_vec3(light["position"]);
+
+			if (!shadowTest(p, position)) {
+				colour3 I = vector_to_vec3(light["color"]);
+				point3 L = glm::normalize(position - p);
+
+				addDiffuse(I, Kd, N, L, colour);
+				addSpecular(I, Ks, a, N, L, V, colour);
+			}
+		}
+
+		else if (light["type"] == "spot") {
+			point3 position = vector_to_vec3(light["position"]);
+
+			if (!shadowTest(p, position)) {
+				point3 direction = vector_to_vec3(light["direction"]);
+				direction = glm::normalize(-direction);
+				float cutoff_degrees = light["cutoff"];
+				float cutoff = cutoff_degrees * M_PI / 180;
+				point3 L = glm::normalize(position - p);
+
+				if (glm::dot(L, direction) > cos(cutoff)) {
+					colour3 I = vector_to_vec3(light["color"]);
+
+					addDiffuse(I, Kd, N, L, colour);
+					addSpecular(I, Ks, a, N, L, V, colour);
+				}
 			}
 		}
 	}
