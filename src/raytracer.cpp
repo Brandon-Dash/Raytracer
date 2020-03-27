@@ -124,9 +124,8 @@ void addSpecular(const colour3 &Is, const colour3 &Ks, const float a, const poin
 	}
 }
 
-bool shadowTest(const point3 &point, const point3 lightPos) {
+bool shadowTest(const point3 &point, const point3 &lightPos, point3 &shadow) {
 	point3 direction = lightPos - point;
-
 
 	json &objects = scene["objects"];
 	for (json::iterator it = objects.begin(); it != objects.end(); ++it) {
@@ -138,19 +137,31 @@ bool shadowTest(const point3 &point, const point3 lightPos) {
 			point3 hitpos;
 
 			float t = hitsphere(direction, point, c, r, hitpos);
-			if (t < 1.0 && t * glm::length(lightPos - point) > 1e-5)
-				return true;
+			if (t < 1.0 && t * glm::length(lightPos - point) > 1e-5) {
+				json material = object["material"];
+				if (material.find("transmissive") != material.end()) {
+					shadow *= vector_to_vec3(material["transmissive"]);
+				}
+				else
+					return false;
+			}
 		}
-		if (object["type"] == "plane") {
+		else if (object["type"] == "plane") {
 			point3 a = vector_to_vec3(object["position"]);
 			point3 n = vector_to_vec3(object["normal"]);
 			point3 hitpos;
 
 			float t = hitplane(direction, point, a, n, hitpos);
-			if (t < 1.0 && t * glm::length(lightPos - point) > 1e-5)
-				return true;
+			if (t < 1.0 && t * glm::length(lightPos - point) > 1e-5) {
+				json material = object["material"];
+				if (material.find("transmissive") != material.end()) {
+					shadow *= vector_to_vec3(material["transmissive"]);
+				}
+				else
+					return false;
+			}
 		}
-		if (object["type"] == "mesh") {
+		else if (object["type"] == "mesh") {
 			std::vector<json> triangles = object["triangles"];
 
 			for (int i = 0; i < triangles.size(); i++) {
@@ -166,19 +177,25 @@ bool shadowTest(const point3 &point, const point3 lightPos) {
 				float t = hitplane(direction, point, p1, n, hitpos);
 
 				if (t < 1.0 && t * glm::length(lightPos - point) > 1e-5) {
-					if (pointInTriangle(hitpos, p1, p2, p3, n))
-						return true;
+					if (pointInTriangle(hitpos, p1, p2, p3, n)) {
+						json material = object["material"];
+						if (material.find("transmissive") != material.end()) {
+							shadow *= vector_to_vec3(material["transmissive"]);
+						}
+						else
+							return false;
+					}
 				}
 			}
 		}
 	}
-	return false;
+	return true;
 }
 
 void light(const point3 &p, const point3 &V, const point3 &N, json &material, colour3 &colour, bool pick, int reflectionCount) {
 	json &lights = scene["lights"];
 
-	colour3 Ka, Kd, Ks, Kr = colour3(0.0, 0.0, 0.0);
+	colour3 Ka, Kd, Ks, Kr, Kt = colour3(0.0, 0.0, 0.0);
 	float a = 0.0;
 
 	if (material.find("ambient") != material.end())
@@ -192,8 +209,7 @@ void light(const point3 &p, const point3 &V, const point3 &N, json &material, co
 
 	colour = colour3(0.0, 0.0, 0.0);
 
-	if (material.find("reflective") != material.end() && reflectionCount < MAX_REFLECTIONS)
-	{
+	if (material.find("reflective") != material.end() && reflectionCount < MAX_REFLECTIONS) {
 		Kr = vector_to_vec3(material["reflective"]);
 		point3 R = glm::normalize(2 * (glm::dot(N, V)) * N - V);
 		bool hit = trace(p + float(1e-5) * R, p + R, colour, pick, reflectionCount + 1);
@@ -201,7 +217,6 @@ void light(const point3 &p, const point3 &V, const point3 &N, json &material, co
 			colour = background_colour;
 		colour = colour * Kr;
 	}
-
 
 	for (json::iterator it = lights.begin(); it != lights.end(); ++it) {
 		json &light = *it;
@@ -219,8 +234,9 @@ void light(const point3 &p, const point3 &V, const point3 &N, json &material, co
 
 			point3 lightPosition = p + float(MAX_T) * L; // virtual position of light for use in shadow test
 
-			if (!shadowTest(p, lightPosition)) {
-				colour3 I = vector_to_vec3(light["color"]);
+			colour3 shadow = colour3(1.0, 1.0, 1.0);
+			if (shadowTest(p, lightPosition, shadow)) {
+				colour3 I = vector_to_vec3(light["color"]) * shadow;
 
 				addDiffuse(I, Kd, N, L, colour);
 				addSpecular(I, Ks, a, N, L, V, colour);
@@ -230,8 +246,9 @@ void light(const point3 &p, const point3 &V, const point3 &N, json &material, co
 		else if (light["type"] == "point") {
 			point3 position = vector_to_vec3(light["position"]);
 
-			if (!shadowTest(p, position)) {
-				colour3 I = vector_to_vec3(light["color"]);
+			colour3 shadow = colour3(1.0, 1.0, 1.0);
+			if (shadowTest(p, position, shadow)) {
+				colour3 I = vector_to_vec3(light["color"]) * shadow;
 				point3 L = glm::normalize(position - p);
 
 				addDiffuse(I, Kd, N, L, colour);
@@ -242,7 +259,8 @@ void light(const point3 &p, const point3 &V, const point3 &N, json &material, co
 		else if (light["type"] == "spot") {
 			point3 position = vector_to_vec3(light["position"]);
 
-			if (!shadowTest(p, position)) {
+			colour3 shadow = colour3(1.0, 1.0, 1.0);
+			if (shadowTest(p, position, shadow)) {
 				point3 direction = vector_to_vec3(light["direction"]);
 				direction = glm::normalize(-direction);
 				float cutoff_degrees = light["cutoff"];
@@ -250,13 +268,20 @@ void light(const point3 &p, const point3 &V, const point3 &N, json &material, co
 				point3 L = glm::normalize(position - p);
 
 				if (glm::dot(L, direction) > cos(cutoff)) {
-					colour3 I = vector_to_vec3(light["color"]);
+					colour3 I = vector_to_vec3(light["color"]) * shadow;
 
 					addDiffuse(I, Kd, N, L, colour);
 					addSpecular(I, Ks, a, N, L, V, colour);
 				}
 			}
 		}
+	}
+
+	if (material.find("transmissive") != material.end()) {
+		Kt = vector_to_vec3(material["transmissive"]);
+		colour3 transcolour = colour3(0.0, 0.0, 0.0);
+		bool hit = trace(p + float(1e-5) * -V, p + -V, transcolour, pick, reflectionCount);
+		colour = (colour3(1.0, 1.0, 1.0) - Kt) * colour + Kt * transcolour;
 	}
 }
 
