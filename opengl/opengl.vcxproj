@@ -98,6 +98,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\src\f.glsl" />
+    <None Include="..\src\scenes\a.json" />
     <None Include="..\src\scenes\c.json" />
     <None Include="..\src\scenes\d.json" />
     <None Include="..\src\scenes\e.json" />

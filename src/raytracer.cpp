@@ -12,6 +12,7 @@
 
 #define M_PI 3.14159265358979323846264338327950288
 #define MAX_T 10000.
+#define MAX_REFLECTIONS 16
 
 using json = nlohmann::json;
 
@@ -174,11 +175,11 @@ bool shadowTest(const point3 &point, const point3 lightPos) {
 	return false;
 }
 
-void light(const point3 &p, const point3 &V, const point3 &N, json &material, colour3 &colour, bool pick) {
+void light(const point3 &p, const point3 &V, const point3 &N, json &material, colour3 &colour, bool pick, int reflectionCount) {
 	json &lights = scene["lights"];
 
-	colour3 Ka, Kd, Ks = colour3(0.0, 0.0, 0.0);
-	float a = 0.0;;
+	colour3 Ka, Kd, Ks, Kr = colour3(0.0, 0.0, 0.0);
+	float a = 0.0;
 
 	if (material.find("ambient") != material.end())
 		Ka = vector_to_vec3(material["ambient"]);
@@ -189,8 +190,18 @@ void light(const point3 &p, const point3 &V, const point3 &N, json &material, co
 	if (material.find("shininess") != material.end())
 		a = material["shininess"];
 
-
 	colour = colour3(0.0, 0.0, 0.0);
+
+	if (material.find("reflective") != material.end() && reflectionCount < MAX_REFLECTIONS)
+	{
+		Kr = vector_to_vec3(material["reflective"]);
+		point3 R = glm::normalize(2 * (glm::dot(N, V)) * N - V);
+		bool hit = trace(p + float(1e-5) * R, p + R, colour, pick, reflectionCount + 1);
+		if (!hit)
+			colour = background_colour;
+		colour = colour * Kr;
+	}
+
 
 	for (json::iterator it = lights.begin(); it != lights.end(); ++it) {
 		json &light = *it;
@@ -280,7 +291,7 @@ void choose_scene(char const *fn) {
 	}
 }
 
-bool trace(const point3 &e, const point3 &s, colour3 &colour, bool pick) {
+bool trace(const point3 &e, const point3 &s, colour3 &colour, bool pick, int reflectionCount) {
 	// NOTE 1: This is a demo, not ray tracing code! You will need to replace all of this with your own code...
   // NOTE 2: You can work with JSON objects directly (like this sample code), read the JSON objects into your own data structures once and render from those (probably in choose_scene), or hard-code the objects in your own data structures and choose them by name in choose_scene; e.g. choose_scene('e') would pick the same scene as the one in "e.json". Your choice.
   // If you want to use this JSON library, https://github.com/nlohmann/json for more information. The code below gives examples of everything you should need: getting named values, iterating over arrays, and converting types.
@@ -368,7 +379,7 @@ bool trace(const point3 &e, const point3 &s, colour3 &colour, bool pick) {
 	if (material == NULL)
 		return false;
 
-	light(p, V, N, material, colour, pick);
+	light(p, V, N, material, colour, pick, reflectionCount);
 
 	return true;
 }
