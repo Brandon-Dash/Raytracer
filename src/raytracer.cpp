@@ -233,32 +233,22 @@ bool refract(const point3 &Vi, const point3 &N, const float &refraction, point3 
 
 	if (k < 0)
 		return false;
-	Vr = refratio * Vi + (refratio * VidotN - k) * N;
-	return true;
-}
-
-bool refractRay(const point3 &Vi, const point3 &N, float refractionRatio, point3 &Vr) {
-	float VidotN = glm::dot(Vi, N);
-
-	if (pow(VidotN, 2) < 1 - pow(1 / refractionRatio, 2))
-		return false;
-
-	Vr = refractionRatio * (Vi - N * VidotN) - N * sqrt(1 - pow(refractionRatio, 2) * (1 - pow(VidotN, 2)));
+	Vr = glm::normalize(refratio * Vi + (refratio * VidotN - sqrt(k)) * n);
 	return true;
 }
 
 void reflectRay(const point3 &V, const point3 &N, point3 &R) {
-	R = glm::normalize(2 * (glm::dot(N, V)) * N - V);
+	R = glm::normalize(2 * glm::dot(N, V) * N - V);
 }
 
-bool calcTransRay(const point3 &inPoint, const point3 &inVector, const point3 &inNormal, const json &object, point3 &outPoint, point3 &outVector) {
+bool calcTransRay(const point3 &inPoint, const point3 &inVector, const point3 &inNormal, const json &object, point3 &outPoint, point3 &outVector, bool pick) {
 	json material = object["material"];
 	float refraction = 1.0;
 	point3 innerVector;
 
 	if (material.find("refraction") != material.end()) {
 		refraction = material["refraction"];
-		refractRay(inVector, inNormal, 1.0 / refraction, innerVector);
+		refract(inVector, inNormal, refraction, innerVector);
 	}
 	else
 		innerVector = inVector;
@@ -271,23 +261,24 @@ bool calcTransRay(const point3 &inPoint, const point3 &inVector, const point3 &i
 		else {
 			point3 c = vector_to_vec3(object["position"]);
 			float r = float(object["radius"]);
-			point3 hitpos;
 
 			bool result = false;
-			int recursion = 0;
+			int reflections = 0;
 			point3 currentPoint = inPoint;
-			while (!result && recursion < 8) {
+			while (!result && reflections < 8) {
 				hitsphere(innerVector, currentPoint, c, r, outPoint, true);
-				point3 outNormal = glm::normalize(c - hitpos);
+				point3 outNormal = glm::normalize(outPoint - c);
 
-				result = refractRay(innerVector, outNormal, refraction, outVector);
+				result = refract(innerVector, outNormal, refraction, outVector);
 
 				if (!result) {
 					point3 R;
 					reflectRay(-innerVector, outNormal, R);
 					innerVector = R;
 					currentPoint = outPoint;
-					recursion++;
+					reflections++;
+					if (pick)
+						std::cout << "interior reflection at {" << outPoint[0] << ", " << outPoint[1] << ", " << outPoint[2] << "}" << std::endl;
 				}
 			}
 			if (!result)
@@ -299,19 +290,21 @@ bool calcTransRay(const point3 &inPoint, const point3 &inVector, const point3 &i
 		point3 hitpos, outNormal;
 
 		bool result = false;
-		int recursion = 0;
+		int reflections = 0;
 		point3 currentPoint = inPoint;
-		while (!result && recursion < 8) {
+		while (!result && reflections < 8) {
 			hitmesh(innerVector, currentPoint, triangles, outPoint, outNormal, true);
 
-			result = refractRay(innerVector, -outNormal, refraction, outVector);
+			result = refract(innerVector, outNormal, refraction, outVector);
 
 			if (!result) {
 				point3 R;
-				reflectRay(-innerVector, -outNormal, R);
+				reflectRay(-innerVector, outNormal, R);
 				innerVector = R;
 				currentPoint = outPoint;
-				recursion++;
+				reflections++;
+				if (pick)
+					std::cout << "interior reflection at {" << outPoint[0] << ", " << outPoint[1] << ", " << outPoint[2] << "}" << std::endl;
 			}
 		}
 		if(!result)
@@ -343,12 +336,19 @@ void light(const point3 &p, const point3 &V, const point3 &N, const json &object
 	colour = colour3(0.0, 0.0, 0.0);
 
 	if (material.find("reflective") != material.end() && reflectionCount < MAX_REFLECTIONS) {
+		if (pick)
+			std::cout << "reflection:" << std::endl;
+
 		Kr = vector_to_vec3(material["reflective"]);
 		point3 R;
 		reflectRay(V, N, R);
 		bool hit = trace(p + float(1e-5) * R, p + R, colour, pick, reflectionCount + 1);
 		if (!hit)
 			colour = background_colour;
+
+		if (pick && !hit)
+			std::cout << "no additional objects hit" << std::endl;
+
 		colour = colour * Kr;
 	}
 
@@ -412,17 +412,27 @@ void light(const point3 &p, const point3 &V, const point3 &N, const json &object
 	}
 
 	if (material.find("transmissive") != material.end()) {
+		if (pick)
+			std::cout << "refraction:" << std::endl;
+
 		Kt = vector_to_vec3(material["transmissive"]);
 		colour3 transcolour = colour3(0.0, 0.0, 0.0);
 		point3 transmissionOrigin, transmissionDirection;
 
-		bool result = calcTransRay(p, -V, N, object, transmissionOrigin, transmissionDirection);
+		bool result = calcTransRay(p, -V, N, object, transmissionOrigin, transmissionDirection, pick);
 
 		if (result) {
+			if (pick)
+				std::cout << "exit object at {" << transmissionOrigin[0] << ", " << transmissionOrigin[1] << ", " << transmissionOrigin[2] << "}" << std::endl;
 			bool hit = trace(transmissionOrigin, transmissionOrigin + transmissionDirection, transcolour, pick, reflectionCount + 1);
 			if (!hit)
 				transcolour = background_colour;
+
+			if (pick && !hit)
+				std::cout << "no additional objects hit" << std::endl;
 		}
+		else if (pick)
+			std::cout << "ray lost due to too many internal reflections" << std::endl;
 
 		colour = (colour3(1.0, 1.0, 1.0) - Kt) * colour + Kt * transcolour;
 	}
@@ -534,7 +544,7 @@ bool trace(const point3 &e, const point3 &s, colour3 &colour, bool pick, int ref
 		return false;
 
 	if (pick)
-		std::cout << "hitpos = {" << p[0] << ", " << p[1] << ", " << p[2] << "}" << std::endl;
+		std::cout << "object " << hitObject["type"] << " hit at {" << p[0] << ", " << p[1] << ", " << p[2] << "}" << std::endl;
 
 	light(p, V, N, hitObject, colour, pick, reflectionCount);
 
