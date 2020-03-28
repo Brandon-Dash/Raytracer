@@ -218,6 +218,25 @@ bool shadowTest(const point3 &point, const point3 &lightPos, point3 &shadow) {
 	return true;
 }
 
+bool refract(const point3 &Vi, const point3 &N, const float &refraction, point3 &Vr) {
+	float VidotN = glm::dot(Vi, N);
+	float refratio = 1.0 / refraction;
+	point3 n = N;
+	if (VidotN < 0)
+		VidotN = -VidotN;
+	else {
+		refratio = 1.0 / refratio;
+		n = -N;
+	}
+
+	float k = 1 - pow(refratio, 2) * (1 - pow(VidotN, 2));
+
+	if (k < 0)
+		return false;
+	Vr = refratio * Vi + (refratio * VidotN - k) * N;
+	return true;
+}
+
 bool refractRay(const point3 &Vi, const point3 &N, float refractionRatio, point3 &Vr) {
 	float VidotN = glm::dot(Vi, N);
 
@@ -265,7 +284,7 @@ bool calcTransRay(const point3 &inPoint, const point3 &inVector, const point3 &i
 
 				if (!result) {
 					point3 R;
-					reflectRay(innerVector, outNormal, R);
+					reflectRay(-innerVector, outNormal, R);
 					innerVector = R;
 					currentPoint = outPoint;
 					recursion++;
