@@ -44,6 +44,7 @@ struct Material {
 
 class Object {
 public:
+	std::string type;
 	Material material;
 	virtual float rayhit(point3 e, point3 d, point3 &hit) = 0;
 };
@@ -56,6 +57,7 @@ public:
 		this->center = center;
 		this->radius = radius;
 		this->material = material;
+		type = "sphere";
 	}
 
 	float rayhit(point3 e, point3 d, point3 &hit) {
@@ -86,6 +88,7 @@ public:
 		this->point = point;
 		this->normal = normal;
 		this->material = material;
+		type = "plane";
 	}
 
 	float rayhit(point3 e, point3 d, point3 &hit) {
@@ -106,6 +109,7 @@ public:
 	std::vector<TRIANGLE> triangles;
 	Mesh(Material material) {
 		this->material = material;
+		type = "mesh";
 	}
 
 	float rayhit(point3 e, point3 d, point3 &hit) {
@@ -165,6 +169,7 @@ private:
 
 class Light {
 public:
+	std::string type;
 	colour3 colour;
 	virtual void calcLight() = 0;
 };
@@ -173,6 +178,7 @@ class Ambient : public Light {
 public:
 	Ambient(colour3 colour) {
 		this->colour = colour;
+		type = "ambient";
 	}
 
 	void calcLight() {
@@ -185,6 +191,7 @@ public:
 	Directional(colour3 colour, point3 direction) {
 		this->colour = colour;
 		this->direction = direction;
+		type = "directional";
 	}
 
 	void calcLight() {
@@ -197,6 +204,7 @@ public:
 	Point(colour3 colour, point3 position) {
 		this->colour = colour;
 		this->position = position;
+		type = "point";
 	}
 
 	void calcLight() {
@@ -213,6 +221,7 @@ public:
 		this->position = position;
 		this->direction = direction;
 		this->cutoff = cutoff;
+		type = "spot";
 	}
 
 	void calcLight() {
