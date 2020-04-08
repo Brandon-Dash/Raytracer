@@ -729,6 +729,11 @@ bool trace(const point3 &e, const point3 &s, colour3 &colour, bool pick, int ref
   // NOTE 2: You can work with JSON objects directly (like this sample code), read the JSON objects into your own data structures once and render from those (probably in choose_scene), or hard-code the objects in your own data structures and choose them by name in choose_scene; e.g. choose_scene('e') would pick the same scene as the one in "e.json". Your choice.
   // If you want to use this JSON library, https://github.com/nlohmann/json for more information. The code below gives examples of everything you should need: getting named values, iterating over arrays, and converting types.
 
+	if (reflectionCount > MAX_REFLECTIONS) {
+		colour = colour3(0, 0, 0);
+		return false;
+	}
+
 	Object* hitObject = NULL;
 	point3 p, N, V;
 	float t_min = MAX_T;
@@ -781,7 +786,6 @@ bool trace(const point3 &e, const point3 &s, colour3 &colour, bool pick, int ref
 			point3 hitpos;
 			point3 n;
 
-			//float t = hitmesh(d, e, triangles, hitpos, n);
 			float t = mesh->hitmesh(d, e, hitpos, n, false);
 
 			if (t > 0 && t < t_min) {
