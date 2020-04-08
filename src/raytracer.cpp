@@ -46,7 +46,7 @@ class Object {
 public:
 	std::string type;
 	Material material;
-	virtual float rayhit(point3 e, point3 d, point3 &hit) = 0;
+	virtual float rayhit(point3 e, point3 d, point3 &hit, point3 &hitNormal) = 0;
 };
 
 class Sphere : public Object {
@@ -60,7 +60,7 @@ public:
 		type = "sphere";
 	}
 
-	float rayhit(point3 e, point3 d, point3 &hit) {
+	float rayhit(point3 e, point3 d, point3 &hit, point3 &hitNormal) {
 		double disc = pow(glm::dot(d, e - center), 2) - glm::dot(d, d) * (glm::dot(e - center, e - center) - radius * radius);
 
 		if (disc < 0)
@@ -91,7 +91,7 @@ public:
 		type = "plane";
 	}
 
-	float rayhit(point3 e, point3 d, point3 &hit) {
+	float rayhit(point3 e, point3 d, point3 &hit, point3 &hitNormal) {
 		double numerator = glm::dot(normal, point - e);
 		double denominator = glm::dot(normal, d);
 		double t = numerator / denominator;
@@ -112,7 +112,11 @@ public:
 		type = "mesh";
 	}
 
-	float rayhit(point3 e, point3 d, point3 &hit) {
+	float rayhit(point3 e, point3 d, point3 &hit, point3 &hitNormal) {
+		return 0;
+	}
+
+	float hitmesh(point3 d, point3 e, point3 &hit, point3 &hitNormal, bool exit) {
 		float t_min = MAX_T;
 
 		for (int i = 0; i < triangles.size(); i++) {
@@ -129,6 +133,7 @@ public:
 
 			if (t > 0.0 && t < t_min && pointInTriangle(hitpos, p1, p2, p3, n)) {
 				hit = hitpos;
+				hitNormal = glm::normalize(n);
 				t_min = t;
 			}
 		}
@@ -144,7 +149,7 @@ private:
 
 		return (test1 >= 0 && test2 >= 0 && test3 >= 0) || (test1 <= 0 && test2 <= 0 && test3 <= 0);
 	}
-	float hitplane(point3 d, point3 e, point3 a, point3 normal, point3 &hit, bool exit = false) {
+	float hitplane(point3 d, point3 e, point3 a, point3 normal, point3 &hit, bool exit) {
 		point3 n = normal;
 		if (exit)
 			n = -normal;
@@ -232,20 +237,12 @@ public:
 
 // Helper functions
 
-json find(json &j, const std::string key, const std::string value) {
-	json::iterator it;
-	for (it = j.begin(); it != j.end(); ++it) {
-		if (it->find(key) != it->end()) {
-			if ((*it)[key] == value) {
-				return *it;
-			}
-		}
-	}
-	return json();
-}
-
 glm::vec3 vector_to_vec3(const std::vector<float> &v) {
 	return glm::vec3(v[0], v[1], v[2]);
+}
+
+bool isZero(const glm::vec3 vec) {
+	return vec[0] == 0 && vec[1] == 0 && vec[2]  == 0;
 }
 
 /****************************************************************************/
@@ -300,32 +297,6 @@ float hitplane(point3 d, point3 e, point3 a, point3 normal, point3 &hit, bool ex
 	}
 }
 
-float hitmesh(point3 d, point3 e, const json triangles, point3 &hit, point3 &hitNormal, bool exit = false) {
-	float t_min = MAX_T;
-
-	for (int i = 0; i < triangles.size(); i++) {
-		std::vector<json> triangle = triangles[i];
-
-		point3 p1 = vector_to_vec3(triangle[0]);
-		point3 p2 = vector_to_vec3(triangle[1]);
-		point3 p3 = vector_to_vec3(triangle[2]);
-
-		point3 n = glm::cross(p2 - p1, p3 - p2);
-		point3 hitpos;
-
-		float t = hitplane(d, e, p1, n, hitpos, exit);
-
-		if (t > 0.0 && t < t_min && pointInTriangle(hitpos, p1, p2, p3, n)) {
-			hit = hitpos;
-			hitNormal = glm::normalize(n);
-			t_min = t;
-		}
-	}
-	if (t_min == MAX_T)
-		return 0.0;
-	return t_min;
-}
-
 /****************************************************************************/
 
 // lighting functions
@@ -358,65 +329,56 @@ void addSpecular(const colour3 &Is, const colour3 &Ks, const float a, const poin
 bool shadowTest(const point3 &point, const point3 &lightPos, point3 &shadow) {
 	point3 direction = lightPos - point;
 
-	json &objects = scene["objects"];
-	for (json::iterator it = objects.begin(); it != objects.end(); ++it) {
-		json &object = *it;
+	for (int i = 0; i < Objects.size(); i++) {
+		Object* object = Objects[i];
 
-		if (object["type"] == "sphere") {
-			point3 c = vector_to_vec3(object["position"]);
-			float r = float(object["radius"]);
+		if (object->type == "sphere") {
+			Sphere* sphere = (Sphere*)object;
+
+			point3 c = sphere->center;
+			float r = sphere->radius;
 			point3 hitpos;
 
 			float t = hitsphere(direction, point, c, r, hitpos);
 			if (t < 1.0 && t * glm::length(lightPos - point) > 1e-5) {
-				json material = object["material"];
-				if (material.find("transmissive") != material.end()) {
-					shadow *= vector_to_vec3(material["transmissive"]);
+				Material material = sphere->material;
+				if (!isZero(material.transmissive)) {
+					shadow *= material.transmissive;
 				}
 				else
 					return false;
 			}
 		}
-		else if (object["type"] == "plane") {
-			point3 a = vector_to_vec3(object["position"]);
-			point3 n = vector_to_vec3(object["normal"]);
+		else if (object->type == "plane") {
+			Plane* plane = (Plane*)object;
+
+			point3 a = plane->point;
+			point3 n = plane->normal;
 			point3 hitpos;
 
 			float t = hitplane(direction, point, a, n, hitpos);
 			if (t < 1.0 && t * glm::length(lightPos - point) > 1e-5) {
-				json material = object["material"];
-				if (material.find("transmissive") != material.end()) {
-					shadow *= vector_to_vec3(material["transmissive"]);
+				Material material = plane->material;
+				if (!isZero(material.transmissive)) {
+					shadow *= material.transmissive;
 				}
 				else
 					return false;
 			}
 		}
-		else if (object["type"] == "mesh") {
-			std::vector<json> triangles = object["triangles"];
+		else if (object->type == "mesh") {
+			Mesh* mesh = (Mesh*)object;
 
-			for (int i = 0; i < triangles.size(); i++) {
-				std::vector<json> triangle = triangles[i];
+			point3 hitpos, n;
+			float t = mesh->hitmesh(direction, point, hitpos, n, false);
 
-				point3 p1 = vector_to_vec3(triangle[0]);
-				point3 p2 = vector_to_vec3(triangle[1]);
-				point3 p3 = vector_to_vec3(triangle[2]);
-
-				point3 n = glm::cross(p2 - p1, p3 - p2);
-				point3 hitpos;
-
-				float t = hitplane(direction, point, p1, n, hitpos);
-
-				if (t < 1.0 && t * glm::length(lightPos - point) > 1e-5) {
-					if (pointInTriangle(hitpos, p1, p2, p3, n)) {
-						json material = object["material"];
-						if (material.find("transmissive") != material.end()) {
-							shadow *= vector_to_vec3(material["transmissive"]);
-						}
-						else
-							return false;
-					}
+			if (t < 1.0 && t * glm::length(lightPos - point) > 1e-5) {
+				Material material = mesh->material;
+				if (!isZero(material.transmissive)) {
+					shadow *= material.transmissive;
 				}
+				else
+					return false;
 			}
 		}
 	}
@@ -446,26 +408,28 @@ void reflectRay(const point3 &V, const point3 &N, point3 &R) {
 	R = glm::normalize(2 * glm::dot(N, V) * N - V);
 }
 
-bool calcTransRay(const point3 &inPoint, const point3 &inVector, const point3 &inNormal, const json &object, point3 &outPoint, point3 &outVector, bool pick) {
-	json material = object["material"];
+bool calcTransRay(const point3 &inPoint, const point3 &inVector, const point3 &inNormal, const Object* object, point3 &outPoint, point3 &outVector, bool pick) {
+	Material material = object->material;
 	float refraction = 1.0;
 	point3 innerVector;
 
-	if (material.find("refraction") != material.end()) {
-		refraction = material["refraction"];
+	if (material.refraction != 0) {
+		refraction = material.refraction;
 		refract(inVector, inNormal, refraction, innerVector);
 	}
 	else
 		innerVector = inVector;
 
-	if (object["type"] == "sphere") {
+	if (object->type == "sphere") {
+		Sphere* sphere = (Sphere*)object;
+
 		if (refraction == 1.0) {
 			outVector = innerVector;
 			outPoint = inPoint + 1e-5f * outVector;
 		}
 		else {
-			point3 c = vector_to_vec3(object["position"]);
-			float r = float(object["radius"]);
+			point3 c = sphere->center;
+			float r = sphere->radius;
 
 			bool result = false;
 			int reflections = 0;
@@ -490,15 +454,16 @@ bool calcTransRay(const point3 &inPoint, const point3 &inVector, const point3 &i
 				return false;
 		}
 	}
-	else if (object["type"] == "mesh") {
-		std::vector<json> triangles = object["triangles"];
+	else if (object->type == "mesh") {
+		Mesh* mesh = (Mesh*)object;
+
 		point3 hitpos, outNormal;
 
 		bool result = false;
 		int reflections = 0;
 		point3 currentPoint = inPoint;
 		while (!result && reflections < 8) {
-			hitmesh(innerVector, currentPoint, triangles, outPoint, outNormal, true);
+			mesh->hitmesh(innerVector, currentPoint, outPoint, outNormal, true);
 
 			result = refract(innerVector, outNormal, refraction, outVector);
 
@@ -515,36 +480,30 @@ bool calcTransRay(const point3 &inPoint, const point3 &inVector, const point3 &i
 		if(!result)
 			return false;
 	}
-	else if (object["type"] == "plane") {
+	else if (object->type == "plane") {
 		outPoint = inPoint;
 		outVector = innerVector;
 	}
 	return true;
 }
 
-void light(const point3 &p, const point3 &V, const point3 &N, const json &object, colour3 &colour, bool pick, int reflectionCount) {
-	json &lights = scene["lights"];
-	json material = object["material"];
+void light(const point3 &p, const point3 &V, const point3 &N, const Object* object, colour3 &colour, bool pick, int reflectionCount) {
+	Material material = object->material;
 
-	colour3 Ka, Kd, Ks, Kr, Kt = colour3(0.0, 0.0, 0.0);
-	float a = 0.0;
+	colour3 Kr, Kt = colour3(0.0, 0.0, 0.0);
 
-	if (material.find("ambient") != material.end())
-		Ka = vector_to_vec3(material["ambient"]);
-	if (material.find("diffuse") != material.end())
-		Kd = vector_to_vec3(material["diffuse"]);
-	if (material.find("specular") != material.end())
-		Ks = vector_to_vec3(material["specular"]);
-	if (material.find("shininess") != material.end())
-		a = material["shininess"];
+	colour3 Ka = material.ambient;
+	colour3 Kd = material.diffuse;
+	colour3 Ks = material.specular;
+	float a = material.shininess;
 
 	colour = colour3(0.0, 0.0, 0.0);
 
-	if (material.find("reflective") != material.end() && reflectionCount < MAX_REFLECTIONS) {
+	if (!isZero(material.reflective)) {
 		if (pick)
 			std::cout << "reflection:" << std::endl;
 
-		Kr = vector_to_vec3(material["reflective"]);
+		Kr = material.reflective;
 		point3 R;
 		reflectRay(V, N, R);
 		bool hit = trace(p + float(1e-5) * R, p + R, colour, pick, reflectionCount + 1);
@@ -557,37 +516,41 @@ void light(const point3 &p, const point3 &V, const point3 &N, const json &object
 		colour = colour * Kr;
 	}
 
-	for (json::iterator it = lights.begin(); it != lights.end(); ++it) {
-		json &light = *it;
+	for (int i = 0; i < Lights.size(); i++) {
+		Light* light = Lights[i];
 
-		if (light["type"] == "ambient") {
-			colour3 Ia = vector_to_vec3(light["color"]);
+		if (light->type == "ambient") {
+			colour3 Ia = light->colour;
 
 			colour3 ambient = Ia * Ka;
 			colour = colour + ambient;
 		}
 
-		else if (light["type"] == "directional") {
-			point3 direction = vector_to_vec3(light["direction"]);
+		else if (light->type == "directional") {
+			Directional* directional = (Directional*)light;
+
+			point3 direction = directional->direction;
 			point3 L = glm::normalize(-direction);
 
 			point3 lightPosition = p + float(MAX_T) * L; // virtual position of light for use in shadow test
 
 			colour3 shadow = colour3(1.0, 1.0, 1.0);
 			if (shadowTest(p, lightPosition, shadow)) {
-				colour3 I = vector_to_vec3(light["color"]) * shadow;
+				colour3 I = directional->colour * shadow;
 
 				addDiffuse(I, Kd, N, L, colour);
 				addSpecular(I, Ks, a, N, L, V, colour);
 			}
 		}
 
-		else if (light["type"] == "point") {
-			point3 position = vector_to_vec3(light["position"]);
+		else if (light->type == "point") {
+			Point* point = (Point*)light;
+
+			point3 position = point->position;
 
 			colour3 shadow = colour3(1.0, 1.0, 1.0);
 			if (shadowTest(p, position, shadow)) {
-				colour3 I = vector_to_vec3(light["color"]) * shadow;
+				colour3 I = point->colour * shadow;
 				point3 L = glm::normalize(position - p);
 
 				addDiffuse(I, Kd, N, L, colour);
@@ -595,19 +558,21 @@ void light(const point3 &p, const point3 &V, const point3 &N, const json &object
 			}
 		}
 
-		else if (light["type"] == "spot") {
-			point3 position = vector_to_vec3(light["position"]);
+		else if (light->type == "spot") {
+			Spot* spot = (Spot*)light;
+
+			point3 position = spot->position;
 
 			colour3 shadow = colour3(1.0, 1.0, 1.0);
 			if (shadowTest(p, position, shadow)) {
-				point3 direction = vector_to_vec3(light["direction"]);
+				point3 direction = spot->direction;
 				direction = glm::normalize(-direction);
-				float cutoff_degrees = light["cutoff"];
+				float cutoff_degrees = spot->cutoff;
 				float cutoff = cutoff_degrees * M_PI / 180;
 				point3 L = glm::normalize(position - p);
 
 				if (glm::dot(L, direction) > cos(cutoff)) {
-					colour3 I = vector_to_vec3(light["color"]) * shadow;
+					colour3 I = spot->colour * shadow;
 
 					addDiffuse(I, Kd, N, L, colour);
 					addSpecular(I, Ks, a, N, L, V, colour);
@@ -616,11 +581,11 @@ void light(const point3 &p, const point3 &V, const point3 &N, const json &object
 		}
 	}
 
-	if (material.find("transmissive") != material.end()) {
+	if (!isZero(material.transmissive)) {
 		if (pick)
 			std::cout << "refraction:" << std::endl;
 
-		Kt = vector_to_vec3(material["transmissive"]);
+		Kt = material.transmissive;
 		colour3 transcolour = colour3(0.0, 0.0, 0.0);
 		point3 transmissionOrigin, transmissionDirection;
 
@@ -764,21 +729,21 @@ bool trace(const point3 &e, const point3 &s, colour3 &colour, bool pick, int ref
   // NOTE 2: You can work with JSON objects directly (like this sample code), read the JSON objects into your own data structures once and render from those (probably in choose_scene), or hard-code the objects in your own data structures and choose them by name in choose_scene; e.g. choose_scene('e') would pick the same scene as the one in "e.json". Your choice.
   // If you want to use this JSON library, https://github.com/nlohmann/json for more information. The code below gives examples of everything you should need: getting named values, iterating over arrays, and converting types.
 
-	json hitObject = NULL;
+	Object* hitObject = NULL;
 	point3 p, N, V;
 	float t_min = MAX_T;
 
 	// traverse the objects
-	json &objects = scene["objects"];
-	for (json::iterator it = objects.begin(); it != objects.end(); ++it) {
-		json &object = *it;
+	for (int i = 0; i < Objects.size(); i++) {
+		Object* object = Objects[i];
 		
 		// every object in the scene will have a "type"
-		if (object["type"] == "sphere") {
-			// Every sphere will have a position and a radius
-			point3 c = vector_to_vec3(object["position"]);
+		if (object->type == "sphere") {
+			Sphere* sphere = (Sphere*)object;
+
+			point3 c = sphere->center;
 			point3 d = s - e;
-			float r = float(object["radius"]);
+			float r = sphere->radius;
 			point3 hitpos;
 
 			float t = hitsphere(d, e, c, r, hitpos);
@@ -791,9 +756,11 @@ bool trace(const point3 &e, const point3 &s, colour3 &colour, bool pick, int ref
 				t_min = t;
 			}
 		}
-		else if (object["type"] == "plane") {
-			point3 a = vector_to_vec3(object["position"]);
-			point3 n = vector_to_vec3(object["normal"]);
+		else if (object->type == "plane") {
+			Plane* plane = (Plane*)object;
+
+			point3 a = plane->point;
+			point3 n = plane->normal;
 			point3 d = s - e;
 			point3 hitpos;
 
@@ -807,14 +774,15 @@ bool trace(const point3 &e, const point3 &s, colour3 &colour, bool pick, int ref
 				t_min = t;
 			}
 		}
-		else if (object["type"] == "mesh") {
-			std::vector<json> triangles = object["triangles"];
+		else if (object->type == "mesh") {
+			Mesh* mesh = (Mesh*)object;
 
 			point3 d = s - e;
 			point3 hitpos;
 			point3 n;
 
-			float t = hitmesh(d, e, triangles, hitpos, n);
+			//float t = hitmesh(d, e, triangles, hitpos, n);
+			float t = mesh->hitmesh(d, e, hitpos, n, false);
 
 			if (t > 0 && t < t_min) {
 				hitObject = object;
@@ -832,7 +800,7 @@ bool trace(const point3 &e, const point3 &s, colour3 &colour, bool pick, int ref
 		return false;
 
 	if (pick)
-		std::cout << "object " << hitObject["type"] << " hit at {" << p[0] << ", " << p[1] << ", " << p[2] << "}" << std::endl;
+		std::cout << "object " << hitObject->type << " hit at {" << p[0] << ", " << p[1] << ", " << p[2] << "}" << std::endl;
 
 	light(p, V, N, hitObject, colour, pick, reflectionCount);
 
