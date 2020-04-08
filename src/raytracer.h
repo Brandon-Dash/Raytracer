@@ -8,3 +8,6 @@ extern colour3 background_colour;
 
 void choose_scene(char const *fn);
 bool trace(const point3 &e, const point3 &s, colour3 &colour, bool pick, int reflectionCount = 0);
+
+class Object;
+class Light;

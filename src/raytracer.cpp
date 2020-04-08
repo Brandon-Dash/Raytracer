@@ -14,6 +14,8 @@
 #define MAX_T 10000.
 #define MAX_REFLECTIONS 16
 
+#define TRIANGLE std::array<point3, 3>
+
 using json = nlohmann::json;
 
 const char *PATH = "scenes/";
@@ -22,6 +24,200 @@ double fov = 60;
 colour3 background_colour(0, 0, 0);
 
 json scene;
+
+std::vector<Object*> Objects;
+std::vector<Light*> Lights;
+
+/****************************************************************************/
+
+// Object classes
+
+struct Material {
+	colour3 ambient = colour3(0, 0, 0);
+	colour3 diffuse = colour3(0, 0, 0);
+	colour3 specular = colour3(0, 0, 0);
+	float shininess = 0;
+	colour3 reflective = colour3(0, 0, 0);
+	colour3 transmissive = colour3(0, 0, 0);
+	float refraction = 0;
+};
+
+class Object {
+public:
+	Material material;
+	virtual float rayhit(point3 e, point3 d, point3 &hit) = 0;
+};
+
+class Sphere : public Object {
+public:
+	point3 center;
+	float radius;
+	Sphere(point3 center, float radius, Material material) {
+		this->center = center;
+		this->radius = radius;
+		this->material = material;
+	}
+
+	float rayhit(point3 e, point3 d, point3 &hit) {
+		double disc = pow(glm::dot(d, e - center), 2) - glm::dot(d, d) * (glm::dot(e - center, e - center) - radius * radius);
+
+		if (disc < 0)
+			return 0;
+
+		double rest = glm::dot(-d, e - center) / glm::dot(d, d);
+		double sqrtdisc = sqrt(disc);
+		double t;
+		
+		t = rest - sqrtdisc / glm::dot(d, d);
+
+		if (t < 0)
+			return 0;
+
+		hit = e + float(t) * d;
+		return float(t);
+	}
+};
+
+class Plane : public Object {
+public:
+	point3 point;
+	point3 normal;
+	Plane(point3 point, point3 normal, Material material) {
+		this->point = point;
+		this->normal = normal;
+		this->material = material;
+	}
+
+	float rayhit(point3 e, point3 d, point3 &hit) {
+		double numerator = glm::dot(normal, point - e);
+		double denominator = glm::dot(normal, d);
+		double t = numerator / denominator;
+
+		if (t <= 0 || numerator > 0)
+			return 0;
+
+		hit = e + float(t) * d;
+		return float(t);
+	}
+};
+
+class Mesh : public Object {
+public:
+	std::vector<TRIANGLE> triangles;
+	Mesh(Material material) {
+		this->material = material;
+	}
+
+	float rayhit(point3 e, point3 d, point3 &hit) {
+		float t_min = MAX_T;
+
+		for (int i = 0; i < triangles.size(); i++) {
+			TRIANGLE triangle = triangles[i];
+
+			point3 p1 = triangle[0];
+			point3 p2 = triangle[1];
+			point3 p3 = triangle[2];
+
+			point3 n = glm::cross(p2 - p1, p3 - p2);
+			point3 hitpos;
+
+			float t = hitplane(d, e, p1, n, hitpos, exit);
+
+			if (t > 0.0 && t < t_min && pointInTriangle(hitpos, p1, p2, p3, n)) {
+				hit = hitpos;
+				t_min = t;
+			}
+		}
+		if (t_min == MAX_T)
+			return 0.0;
+		return t_min;
+	}
+private:
+	bool pointInTriangle(const point3 &point, const point3 &p1, const point3 &p2, const point3 &p3, const point3 &n) {
+		float test1 = glm::dot(glm::cross(point - p1, p2 - p1), n);
+		float test2 = glm::dot(glm::cross(point - p2, p3 - p2), n);
+		float test3 = glm::dot(glm::cross(point - p3, p1 - p3), n);
+
+		return (test1 >= 0 && test2 >= 0 && test3 >= 0) || (test1 <= 0 && test2 <= 0 && test3 <= 0);
+	}
+	float hitplane(point3 d, point3 e, point3 a, point3 normal, point3 &hit, bool exit = false) {
+		point3 n = normal;
+		if (exit)
+			n = -normal;
+
+		double numerator = glm::dot(n, a - e);
+		double denominator = glm::dot(n, d);
+		double t = numerator / denominator;
+
+		if (t <= 0 || numerator > 0) {
+			return 0;
+		}
+		else {
+			hit = e + float(t) * d;
+			return float(t);
+		}
+	}
+};
+
+/****************************************************************************/
+
+// Light classes
+
+class Light {
+public:
+	colour3 colour;
+	virtual void calcLight() = 0;
+};
+
+class Ambient : public Light {
+public:
+	Ambient(colour3 colour) {
+		this->colour = colour;
+	}
+
+	void calcLight() {
+	}
+};
+
+class Directional : public Light {
+public:
+	point3 direction;
+	Directional(colour3 colour, point3 direction) {
+		this->colour = colour;
+		this->direction = direction;
+	}
+
+	void calcLight() {
+	}
+};
+
+class Point : public Light {
+public:
+	point3 position;
+	Point(colour3 colour, point3 position) {
+		this->colour = colour;
+		this->position = position;
+	}
+
+	void calcLight() {
+	}
+};
+
+class Spot : public Light {
+public:
+	point3 position;
+	point3 direction;
+	float cutoff;
+	Spot(point3 colour, point3 position, point3 direction, float cutoff) {
+		this->colour = colour;
+		this->position = position;
+		this->direction = direction;
+		this->cutoff = cutoff;
+	}
+
+	void calcLight() {
+	}
+};
 
 /****************************************************************************/
 
@@ -467,6 +663,91 @@ void choose_scene(char const *fn) {
 		background_colour = vector_to_vec3(camera["background"]);
 		std::cout << "Setting background colour to " << glm::to_string(background_colour) << std::endl;
 	}
+
+	json objects = scene["objects"];
+	for (json::iterator it = objects.begin(); it != objects.end(); ++it) {
+		json &object = *it;
+
+		json materialjson = object["material"];
+		Material material;
+
+		if (materialjson.find("ambient") != materialjson.end())
+			material.ambient = vector_to_vec3(materialjson["ambient"]);
+		if (materialjson.find("diffuse") != materialjson.end())
+			material.diffuse = vector_to_vec3(materialjson["diffuse"]);
+		if (materialjson.find("specular") != materialjson.end())
+			material.specular = vector_to_vec3(materialjson["specular"]);
+		if (materialjson.find("reflective") != materialjson.end())
+			material.reflective = vector_to_vec3(materialjson["reflective"]);
+		if (materialjson.find("transmissive") != materialjson.end())
+			material.transmissive = vector_to_vec3(materialjson["transmissive"]);
+		if (materialjson.find("shininess") != materialjson.end())
+			material.shininess = float(materialjson["shininess"]);
+		if (materialjson.find("refraction") != materialjson.end())
+			material.refraction = float(materialjson["refraction"]);
+
+		if (object["type"] == "sphere") {
+			point3 center = vector_to_vec3(object["position"]);
+			float radius = float(object["radius"]);
+
+			Objects.push_back(new Sphere(center, radius, material));
+		}
+
+		if (object["type"] == "plane") {
+			point3 point = vector_to_vec3(object["position"]);
+			point3 normal = vector_to_vec3(object["normal"]);
+
+			Objects.push_back(new Plane(point, normal, material));
+		}
+
+		if (object["type"] == "mesh") {
+			std::vector<json> triangles = object["triangles"];
+
+			Mesh* mesh = new Mesh(material);
+
+			for (int i = 0; i < triangles.size(); i++) {
+				std::vector<json> trianglejson = triangles[i];
+
+				TRIANGLE triangle;
+
+				triangle[0] = vector_to_vec3(trianglejson[0]);
+				triangle[1] = vector_to_vec3(trianglejson[1]);
+				triangle[2] = vector_to_vec3(trianglejson[2]);
+
+				mesh->triangles.push_back(triangle);
+			}
+
+			Objects.push_back(mesh);
+		}
+	}
+
+	json lights = scene["lights"];
+	for (json::iterator it = lights.begin(); it != lights.end(); ++it) {
+		json &light = *it;
+
+		colour3 colour = vector_to_vec3(light["color"]);
+
+		if (light["type"] == "ambient") {
+			Lights.push_back(new Ambient(colour));
+		}
+
+		if (light["type"] == "directional") {
+			point3 direction = vector_to_vec3(light["direction"]);
+			Lights.push_back(new Directional(colour, direction));
+		}
+
+		if (light["type"] == "point") {
+			point3 position = vector_to_vec3(light["position"]);
+			Lights.push_back(new Point(colour, position));
+		}
+
+		if (light["type"] == "spot") {
+			point3 position = vector_to_vec3(light["position"]);
+			point3 direction = vector_to_vec3(light["direction"]);
+			float cutoff = float(light["cutoff"]);
+			Lights.push_back(new Spot(colour, position, direction, cutoff));
+		}
+	}
 }
 
 bool trace(const point3 &e, const point3 &s, colour3 &colour, bool pick, int reflectionCount) {
@@ -519,22 +800,20 @@ bool trace(const point3 &e, const point3 &s, colour3 &colour, bool pick, int ref
 		}
 		else if (object["type"] == "mesh") {
 			std::vector<json> triangles = object["triangles"];
-			
-			for (int i = 0; i < triangles.size(); i++) {
-				point3 d = s - e;
-				point3 hitpos;
-				point3 n;
 
-				float t = hitmesh(d, e, triangles, hitpos, n);
+			point3 d = s - e;
+			point3 hitpos;
+			point3 n;
 
-				if (t > 0 && t < t_min) {
-					hitObject = object;
-					p = hitpos;
-					N = glm::normalize(n);
-					V = glm::normalize(e - hitpos);
-					t_min = t;
+			float t = hitmesh(d, e, triangles, hitpos, n);
+
+			if (t > 0 && t < t_min) {
+				hitObject = object;
+				p = hitpos;
+				N = glm::normalize(n);
+				V = glm::normalize(e - hitpos);
+				t_min = t;
 					
-				}
 			}
 			
 		}
