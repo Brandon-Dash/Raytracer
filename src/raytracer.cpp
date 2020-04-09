@@ -419,7 +419,7 @@ bool calcTransRay(const point3 &inPoint, const point3 &inVector, const point3 &i
 			bool result = false;
 			int reflections = 0;
 			point3 currentPoint = inPoint;
-			while (!result && reflections < 8) {
+			while (!result && reflections < MAX_REFLECTIONS) {
 				hitsphere(innerVector, currentPoint, c, r, outPoint, true);
 				point3 outNormal = glm::normalize(outPoint - c);
 
@@ -447,7 +447,7 @@ bool calcTransRay(const point3 &inPoint, const point3 &inVector, const point3 &i
 		bool result = false;
 		int reflections = 0;
 		point3 currentPoint = inPoint;
-		while (!result && reflections < 8) {
+		while (!result && reflections < MAX_REFLECTIONS) {
 			mesh->hitmesh(innerVector, currentPoint, outPoint, outNormal, true);
 
 			result = refract(innerVector, outNormal, refraction, outVector);
