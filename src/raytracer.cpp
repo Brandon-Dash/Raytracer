@@ -172,54 +172,42 @@ private:
 
 // Light classes
 
-class Light {
-public:
+struct Light {
 	std::string type;
 	colour3 colour;
-	virtual void calcLight() = 0;
 };
 
-class Ambient : public Light {
-public:
+struct Ambient : Light {
 	Ambient(colour3 colour) {
 		this->colour = colour;
 		type = "ambient";
 	}
-
-	void calcLight() {
-	}
 };
 
-class Directional : public Light {
-public:
+struct Directional :  Light {
 	point3 direction;
+
 	Directional(colour3 colour, point3 direction) {
 		this->colour = colour;
 		this->direction = direction;
 		type = "directional";
 	}
-
-	void calcLight() {
-	}
 };
 
-class Point : public Light {
-public:
+struct Point :  Light {
 	point3 position;
+
 	Point(colour3 colour, point3 position) {
 		this->colour = colour;
 		this->position = position;
 		type = "point";
 	}
-
-	void calcLight() {
-	}
 };
 
-class Spot : public Light {
-public:
+struct Spot :  Light {
 	point3 position;
 	point3 direction;
+
 	float cutoff;
 	Spot(point3 colour, point3 position, point3 direction, float cutoff) {
 		this->colour = colour;
@@ -227,9 +215,6 @@ public:
 		this->direction = direction;
 		this->cutoff = cutoff;
 		type = "spot";
-	}
-
-	void calcLight() {
 	}
 };
 
