@@ -46,7 +46,8 @@ class Object {
 public:
 	std::string type;
 	Material material;
-	virtual float rayhit(point3 e, point3 d, point3 &hit, point3 &hitNormal) = 0;
+	point3 cachedHitpoint;
+	virtual float rayhit(point3 e, point3 d) = 0;
 };
 
 class Sphere : public Object {
@@ -60,7 +61,7 @@ public:
 		type = "sphere";
 	}
 
-	float rayhit(point3 e, point3 d, point3 &hit, point3 &hitNormal) {
+	float rayhit(point3 e, point3 d) {
 		double disc = pow(glm::dot(d, e - center), 2) - glm::dot(d, d) * (glm::dot(e - center, e - center) - radius * radius);
 
 		if (disc < 0)
@@ -75,7 +76,7 @@ public:
 		if (t < 0)
 			return 0;
 
-		hit = e + float(t) * d;
+		cachedHitpoint = e + float(t) * d;
 		return float(t);
 	}
 };
@@ -91,7 +92,7 @@ public:
 		type = "plane";
 	}
 
-	float rayhit(point3 e, point3 d, point3 &hit, point3 &hitNormal) {
+	float rayhit(point3 e, point3 d) {
 		double numerator = glm::dot(normal, point - e);
 		double denominator = glm::dot(normal, d);
 		double t = numerator / denominator;
@@ -99,7 +100,7 @@ public:
 		if (t <= 0 || numerator > 0)
 			return 0;
 
-		hit = e + float(t) * d;
+		cachedHitpoint = e + float(t) * d;
 		return float(t);
 	}
 };
@@ -112,11 +113,33 @@ public:
 		type = "mesh";
 	}
 
-	float rayhit(point3 e, point3 d, point3 &hit, point3 &hitNormal) {
-		return 0;
+	float rayhit(point3 e, point3 d) {
+		float t_min = MAX_T;
+
+		for (int i = 0; i < triangles.size(); i++) {
+			TRIANGLE triangle = triangles[i];
+
+			point3 p1 = triangle[0];
+			point3 p2 = triangle[1];
+			point3 p3 = triangle[2];
+
+			point3 n = glm::cross(p2 - p1, p3 - p2);
+
+			float t = Plane(p1, n, material).rayhit(e, d);
+			point3 hitpos = e + t * d;
+
+			if (t > 0.0 && t < t_min && pointInTriangle(hitpos, p1, p2, p3, n)) {
+				cachedHitpoint = hitpos;
+				cachedHitNormal = glm::normalize(n);
+				t_min = t;
+			}
+		}
+		if (t_min == MAX_T)
+			return 0.0;
+		return t_min;
 	}
 
-	float hitmesh(point3 d, point3 e, point3 &hit, point3 &hitNormal, bool exit) {
+	float hitmesh(point3 d, point3 e, point3 &hit, point3 &hitNormal, bool exit) { // REMOVE
 		float t_min = MAX_T;
 
 		for (int i = 0; i < triangles.size(); i++) {
@@ -142,6 +165,8 @@ public:
 		return t_min;
 	}
 private:
+	point3 cachedHitNormal;
+
 	bool pointInTriangle(const point3 &point, const point3 &p1, const point3 &p2, const point3 &p3, const point3 &n) {
 		float test1 = glm::dot(glm::cross(point - p1, p2 - p1), n);
 		float test2 = glm::dot(glm::cross(point - p2, p3 - p2), n);
@@ -149,7 +174,7 @@ private:
 
 		return (test1 >= 0 && test2 >= 0 && test3 >= 0) || (test1 <= 0 && test2 <= 0 && test3 <= 0);
 	}
-	float hitplane(point3 d, point3 e, point3 a, point3 normal, point3 &hit, bool exit) {
+	float hitplane(point3 d, point3 e, point3 a, point3 normal, point3 &hit, bool exit) { // REMOVE
 		point3 n = normal;
 		if (exit)
 			n = -normal;
