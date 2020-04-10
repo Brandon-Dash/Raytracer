@@ -30,8 +30,6 @@ std::vector<Light*> Lights;
 
 /****************************************************************************/
 
-// Object classes
-
 struct Material {
 	colour3 ambient = colour3(0, 0, 0);
 	colour3 diffuse = colour3(0, 0, 0);
@@ -42,12 +40,202 @@ struct Material {
 	float refraction = 0;
 };
 
+/****************************************************************************/
+
+// Light classes
+
+struct Light {
+	std::string type;
+	colour3 colour;
+	virtual void lightPoint(point3 p, point3 N, point3 V, Material material, colour3 &pointColour) = 0;
+};
+
+struct Ambient : Light {
+	Ambient(colour3 colour) {
+		this->colour = colour;
+		type = "ambient";
+	}
+
+	void lightPoint(point3 p, point3 N, point3 V, Material material, colour3& pointColour) {
+		colour3 I = colour;
+
+		colour3 ambient = I * material.ambient;
+		pointColour += ambient;
+	}
+};
+
+struct Directional : Light {
+	point3 direction;
+
+	Directional(colour3 colour, point3 direction) {
+		this->colour = colour;
+		this->direction = glm::normalize(direction);
+		type = "directional";
+	}
+
+	void lightPoint(point3 p, point3 N, point3 V, Material material, colour3 &pointColour) {
+		point3 L = -direction;
+		point3 lightPosition = p + float(MAX_T) * L; // virtual position of light for use in shadow test
+
+		colour3 shadow = colour3(1.0, 1.0, 1.0);
+		if (shadowTest(p, lightPosition, shadow)) {
+			colour3 I = colour * shadow;
+
+			addDiffuse(I, material.diffuse, N, L, pointColour);
+			addSpecular(I, material.specular, material.shininess, N, L, V, pointColour);
+		}
+	}
+};
+
+struct Point : Light {
+	point3 position;
+
+	Point(colour3 colour, point3 position) {
+		this->colour = colour;
+		this->position = position;
+		type = "point";
+	}
+
+	void lightPoint(point3 p, point3 N, point3 V, Material material, colour3 &pointColour) {
+		colour3 shadow = colour3(1.0, 1.0, 1.0);
+		if (shadowTest(p, position, shadow)) {
+			colour3 I = colour * shadow;
+			point3 L = glm::normalize(position - p);
+
+			addDiffuse(I, material.diffuse, N, L, pointColour);
+			addSpecular(I, material.specular, material.shininess, N, L, V, pointColour);
+		}
+	}
+};
+
+struct Spot : Light {
+	point3 position;
+	point3 direction;
+
+	float cutoff;
+	Spot(point3 colour, point3 position, point3 direction, float cutoff) {
+		this->colour = colour;
+		this->position = position;
+		this->direction = glm::normalize(direction);
+		this->cutoff = cutoff;
+		type = "spot";
+	}
+
+	void lightPoint(point3 p, point3 N, point3 V, Material material, colour3 &pointColour) {
+		colour3 shadow = colour3(1.0, 1.0, 1.0);
+		if (shadowTest(p, position, shadow)) {
+			direction = -direction;
+			point3 L = glm::normalize(position - p);
+
+			if (glm::dot(L, direction) > cos(cutoff * M_PI / 180)) {
+				colour3 I = colour * shadow;
+
+				addDiffuse(I, material.diffuse, N, L, pointColour);
+				addSpecular(I, material.specular, material.shininess, N, L, V, pointColour);
+			}
+		}
+	}
+};
+
+/****************************************************************************/
+
+// Object classes
+
 class Object {
 public:
 	std::string type;
 	Material material;
 	point3 cachedHitpoint;
-	virtual float rayhit(point3 e, point3 d) = 0;
+	virtual float rayhit(point3 e, point3 d, bool exit = false) = 0;
+	virtual void getNormal(point3 &n) = 0;
+
+	void lightPoint(point3 e, point3 d, colour3& colour, int reflectionCount, bool pick) {
+		point3 p = cachedHitpoint;
+		point3 V = glm::normalize(-d);
+		point3 N;
+		getNormal(N);
+
+		colour = colour3(0.0, 0.0, 0.0);
+
+		if (!isZero(material.reflective)) {
+			if (pick)
+				std::cout << "reflection:" << std::endl;
+			point3 R;
+			reflectRay(V, N, R);
+			bool hit = trace(p + float(1e-5) * R, p + R, colour, pick, reflectionCount + 1);
+			if (!hit)
+				colour = background_colour;
+
+			if (pick && !hit)
+				std::cout << "no additional objects hit" << std::endl;
+
+			colour = colour * material.reflective;
+		}
+
+		for (int i = 0; i < Lights.size(); i++) {
+			Lights[i]->lightPoint(p, N, V, material, colour);
+		}
+
+		if (!isZero(material.transmissive)) {
+			if (pick)
+				std::cout << "transmission:" << std::endl;
+
+			colour3 transcolour = colour3(0.0, 0.0, 0.0);
+			point3 transmissionOrigin, transmissionDirection;
+
+			bool result = transmitRay(p, d, N, transmissionOrigin, transmissionDirection, pick);
+
+			if (result) {
+				if (pick)
+					std::cout << "exit object at {" << transmissionOrigin[0] << ", " << transmissionOrigin[1] << ", " << transmissionOrigin[2] << "}" << std::endl;
+				bool hit = trace(transmissionOrigin, transmissionOrigin + transmissionDirection, transcolour, pick, reflectionCount + 1);
+				if (!hit)
+					transcolour = background_colour;
+
+				if (pick && !hit)
+					std::cout << "no additional objects hit" << std::endl;
+			}
+			else if (pick)
+				std::cout << "ray lost due to too many internal reflections" << std::endl;
+
+			colour = (colour3(1.0, 1.0, 1.0) - material.transmissive) * colour + material.transmissive * transcolour;
+		}
+	}
+
+	virtual bool transmitRay(point3 inPoint, point3 inVector, point3 inNormal, point3& outPoint, point3& outVector, bool pick) {
+		if (material.refraction == 0) {
+			outVector = inVector;
+			outPoint = inPoint + 1e-5f * outVector;
+			return true;
+		}
+
+		point3 currentPoint = inPoint;
+		point3 innerVector;
+		point3 outNormal;
+
+		refractRay(inVector, inNormal, material.refraction, innerVector);
+
+		bool result = false;
+		int reflections = 0;
+		while (!result && reflections < MAX_REFLECTIONS) {
+			rayhit(currentPoint, innerVector, true);
+			outPoint = cachedHitpoint;
+			getNormal(outNormal);
+
+			result = refractRay(innerVector, outNormal, material.refraction, outVector);
+
+			if (!result) {
+				if (pick)
+					std::cout << "interior reflection at {" << outPoint[0] << ", " << outPoint[1] << ", " << outPoint[2] << "}" << std::endl;
+				point3 R;
+				reflectRay(-innerVector, outNormal, R);
+				innerVector = R;
+				currentPoint = outPoint;
+				reflections++;
+			}
+		}
+		return result;
+	}
 };
 
 class Sphere : public Object {
@@ -61,23 +249,29 @@ public:
 		type = "sphere";
 	}
 
-	float rayhit(point3 e, point3 d) {
+	float rayhit(point3 e, point3 d, bool exit) {
 		double disc = pow(glm::dot(d, e - center), 2) - glm::dot(d, d) * (glm::dot(e - center, e - center) - radius * radius);
 
 		if (disc < 0)
 			return 0;
 
 		double rest = glm::dot(-d, e - center) / glm::dot(d, d);
-		double sqrtdisc = sqrt(disc);
 		double t;
 		
-		t = rest - sqrtdisc / glm::dot(d, d);
+		if (!exit)
+			t = rest - sqrt(disc) / glm::dot(d, d);
+		else
+			t = rest + sqrt(disc) / glm::dot(d, d);
 
 		if (t < 0)
 			return 0;
 
 		cachedHitpoint = e + float(t) * d;
 		return float(t);
+	}
+
+	void getNormal(point3 &n) {
+		n =  glm::normalize(cachedHitpoint - center);
 	}
 };
 
@@ -92,9 +286,13 @@ public:
 		type = "plane";
 	}
 
-	float rayhit(point3 e, point3 d) {
-		double numerator = glm::dot(normal, point - e);
-		double denominator = glm::dot(normal, d);
+	float rayhit(point3 e, point3 d, bool exit) {
+		point3 n = normal;
+		if (exit)
+			n = -normal;
+
+		double numerator = glm::dot(n, point - e);
+		double denominator = glm::dot(n, d);
 		double t = numerator / denominator;
 
 		if (t <= 0 || numerator > 0)
@@ -103,9 +301,22 @@ public:
 		cachedHitpoint = e + float(t) * d;
 		return float(t);
 	}
+
+	void getNormal(point3 &n) {
+		n = glm::normalize(normal);
+	}
+
+	bool transmitRay(point3 inPoint, point3 inVector, point3 inNormal, point3& outPoint, point3& outVector, bool pick) {
+		// planes don't refract
+		outVector = inVector;
+		outPoint = inPoint + 1e-5f * outVector;
+		return true;
+	}
 };
 
 class Mesh : public Object {
+private:
+	point3 cachedHitNormal;
 public:
 	std::vector<TRIANGLE> triangles;
 	Mesh(Material material) {
@@ -113,7 +324,7 @@ public:
 		type = "mesh";
 	}
 
-	float rayhit(point3 e, point3 d) {
+	float rayhit(point3 e, point3 d, bool exit) {
 		float t_min = MAX_T;
 
 		for (int i = 0; i < triangles.size(); i++) {
@@ -125,7 +336,7 @@ public:
 
 			point3 n = glm::cross(p2 - p1, p3 - p2);
 
-			float t = Plane(p1, n, material).rayhit(e, d);
+			float t = Plane(p1, n, material).rayhit(e, d, exit);
 			point3 hitpos = e + t * d;
 
 			if (t > 0.0 && t < t_min && pointInTriangle(hitpos, p1, p2, p3, n)) {
@@ -139,107 +350,8 @@ public:
 		return t_min;
 	}
 
-	float hitmesh(point3 d, point3 e, point3 &hit, point3 &hitNormal, bool exit) { // REMOVE
-		float t_min = MAX_T;
-
-		for (int i = 0; i < triangles.size(); i++) {
-			TRIANGLE triangle = triangles[i];
-
-			point3 p1 = triangle[0];
-			point3 p2 = triangle[1];
-			point3 p3 = triangle[2];
-
-			point3 n = glm::cross(p2 - p1, p3 - p2);
-			point3 hitpos;
-
-			float t = hitplane(d, e, p1, n, hitpos, exit);
-
-			if (t > 0.0 && t < t_min && pointInTriangle(hitpos, p1, p2, p3, n)) {
-				hit = hitpos;
-				hitNormal = glm::normalize(n);
-				t_min = t;
-			}
-		}
-		if (t_min == MAX_T)
-			return 0.0;
-		return t_min;
-	}
-private:
-	point3 cachedHitNormal;
-
-	bool pointInTriangle(const point3 &point, const point3 &p1, const point3 &p2, const point3 &p3, const point3 &n) {
-		float test1 = glm::dot(glm::cross(point - p1, p2 - p1), n);
-		float test2 = glm::dot(glm::cross(point - p2, p3 - p2), n);
-		float test3 = glm::dot(glm::cross(point - p3, p1 - p3), n);
-
-		return (test1 >= 0 && test2 >= 0 && test3 >= 0) || (test1 <= 0 && test2 <= 0 && test3 <= 0);
-	}
-	float hitplane(point3 d, point3 e, point3 a, point3 normal, point3 &hit, bool exit) { // REMOVE
-		point3 n = normal;
-		if (exit)
-			n = -normal;
-
-		double numerator = glm::dot(n, a - e);
-		double denominator = glm::dot(n, d);
-		double t = numerator / denominator;
-
-		if (t <= 0 || numerator > 0) {
-			return 0;
-		}
-		else {
-			hit = e + float(t) * d;
-			return float(t);
-		}
-	}
-};
-
-/****************************************************************************/
-
-// Light classes
-
-struct Light {
-	std::string type;
-	colour3 colour;
-};
-
-struct Ambient : Light {
-	Ambient(colour3 colour) {
-		this->colour = colour;
-		type = "ambient";
-	}
-};
-
-struct Directional :  Light {
-	point3 direction;
-
-	Directional(colour3 colour, point3 direction) {
-		this->colour = colour;
-		this->direction = direction;
-		type = "directional";
-	}
-};
-
-struct Point :  Light {
-	point3 position;
-
-	Point(colour3 colour, point3 position) {
-		this->colour = colour;
-		this->position = position;
-		type = "point";
-	}
-};
-
-struct Spot :  Light {
-	point3 position;
-	point3 direction;
-
-	float cutoff;
-	Spot(point3 colour, point3 position, point3 direction, float cutoff) {
-		this->colour = colour;
-		this->position = position;
-		this->direction = direction;
-		this->cutoff = cutoff;
-		type = "spot";
+	void getNormal(point3 &n) {
+		n = cachedHitNormal;
 	}
 };
 
@@ -257,59 +369,7 @@ bool isZero(const glm::vec3 vec) {
 
 /****************************************************************************/
 
-// Ray intersection functions
-
-float hitsphere(point3 d, point3 e, point3 c, float r, point3 &hit, bool exit = false) {
-	double disc = pow(glm::dot(d, e - c), 2) - glm::dot(d, d) * (glm::dot(e - c, e - c) - r * r);
-
-	if (disc < 0)
-		return 0;
-
-	double rest = glm::dot(-d, e - c) / glm::dot(d, d);
-	double sqrtdisc = sqrt(disc);
-	double t;
-
-	if (exit)
-		t = rest + sqrtdisc / glm::dot(d, d);
-	else
-		t = rest - sqrtdisc / glm::dot(d, d);
-
-	if (t < 0)
-		return 0;
-
-	hit = e + float(t) * d;
-	return float(t);
-}
-
-bool pointInTriangle(const point3 &point, const point3 &p1, const point3 &p2, const point3 &p3, const point3 &n) {
-	float test1 = glm::dot(glm::cross(point - p1, p2 - p1), n);
-	float test2 = glm::dot(glm::cross(point - p2, p3 - p2), n);
-	float test3 = glm::dot(glm::cross(point - p3, p1 - p3), n);
-
-	return (test1 >= 0 && test2 >= 0 && test3 >= 0) || (test1 <= 0 && test2 <= 0 && test3 <= 0);
-}
-
-float hitplane(point3 d, point3 e, point3 a, point3 normal, point3 &hit, bool exit = false) {
-	point3 n = normal;
-	if (exit)
-		n = -normal;
-
-	double numerator = glm::dot(n, a - e);
-	double denominator = glm::dot(n, d);
-	double t = numerator / denominator;
-
-	if (t <= 0 || numerator > 0) {
-		return 0;
-	}
-	else {
-		hit = e + float(t) * d;
-		return float(t);
-	}
-}
-
-/****************************************************************************/
-
-// lighting functions
+// "Equation" functions
 
 void addDiffuse(const colour3 &Id, const colour3 &Kd, const point3 &N, const point3 &L, colour3 &colour) {
 	colour3 diffuse = Id * Kd * glm::dot(N, L);
@@ -342,60 +402,20 @@ bool shadowTest(const point3 &point, const point3 &lightPos, point3 &shadow) {
 	for (int i = 0; i < Objects.size(); i++) {
 		Object* object = Objects[i];
 
-		if (object->type == "sphere") {
-			Sphere* sphere = (Sphere*)object;
-
-			point3 c = sphere->center;
-			float r = sphere->radius;
-			point3 hitpos;
-
-			float t = hitsphere(direction, point, c, r, hitpos);
-			if (t < 1.0 && t * glm::length(lightPos - point) > 1e-5) {
-				Material material = sphere->material;
-				if (!isZero(material.transmissive)) {
-					shadow *= material.transmissive;
-				}
-				else
-					return false;
+		float t = object->rayhit(point, direction);
+		if (t < 1.0 && t * glm::length(lightPos - point) > 1e-5) {
+			Material material = object->material;
+			if (!isZero(material.transmissive)) {
+				shadow *= material.transmissive;
 			}
-		}
-		else if (object->type == "plane") {
-			Plane* plane = (Plane*)object;
-
-			point3 a = plane->point;
-			point3 n = plane->normal;
-			point3 hitpos;
-
-			float t = hitplane(direction, point, a, n, hitpos);
-			if (t < 1.0 && t * glm::length(lightPos - point) > 1e-5) {
-				Material material = plane->material;
-				if (!isZero(material.transmissive)) {
-					shadow *= material.transmissive;
-				}
-				else
-					return false;
-			}
-		}
-		else if (object->type == "mesh") {
-			Mesh* mesh = (Mesh*)object;
-
-			point3 hitpos, n;
-			float t = mesh->hitmesh(direction, point, hitpos, n, false);
-
-			if (t < 1.0 && t * glm::length(lightPos - point) > 1e-5) {
-				Material material = mesh->material;
-				if (!isZero(material.transmissive)) {
-					shadow *= material.transmissive;
-				}
-				else
-					return false;
-			}
+			else
+				return false;
 		}
 	}
 	return true;
 }
 
-bool refract(const point3 &Vi, const point3 &N, const float &refraction, point3 &Vr) {
+bool refractRay(const point3 &Vi, const point3 &N, const float &refraction, point3 &Vr) {
 	float VidotN = glm::dot(Vi, N);
 	float refratio = 1.0 / refraction;
 	point3 n = N;
@@ -418,204 +438,12 @@ void reflectRay(const point3 &V, const point3 &N, point3 &R) {
 	R = glm::normalize(2 * glm::dot(N, V) * N - V);
 }
 
-bool calcTransRay(const point3 &inPoint, const point3 &inVector, const point3 &inNormal, const Object* object, point3 &outPoint, point3 &outVector, bool pick) {
-	Material material = object->material;
-	float refraction = 1.0;
-	point3 innerVector;
+bool pointInTriangle(const point3& point, const point3& p1, const point3& p2, const point3& p3, const point3& n) {
+	float test1 = glm::dot(glm::cross(point - p1, p2 - p1), n);
+	float test2 = glm::dot(glm::cross(point - p2, p3 - p2), n);
+	float test3 = glm::dot(glm::cross(point - p3, p1 - p3), n);
 
-	if (material.refraction != 0) {
-		refraction = material.refraction;
-		refract(inVector, inNormal, refraction, innerVector);
-	}
-	else
-		innerVector = inVector;
-
-	if (object->type == "sphere") {
-		Sphere* sphere = (Sphere*)object;
-
-		if (refraction == 1.0) {
-			outVector = innerVector;
-			outPoint = inPoint + 1e-5f * outVector;
-		}
-		else {
-			point3 c = sphere->center;
-			float r = sphere->radius;
-
-			bool result = false;
-			int reflections = 0;
-			point3 currentPoint = inPoint;
-			while (!result && reflections < MAX_REFLECTIONS) {
-				hitsphere(innerVector, currentPoint, c, r, outPoint, true);
-				point3 outNormal = glm::normalize(outPoint - c);
-
-				result = refract(innerVector, outNormal, refraction, outVector);
-
-				if (!result) {
-					point3 R;
-					reflectRay(-innerVector, outNormal, R);
-					innerVector = R;
-					currentPoint = outPoint;
-					reflections++;
-					if (pick)
-						std::cout << "interior reflection at {" << outPoint[0] << ", " << outPoint[1] << ", " << outPoint[2] << "}" << std::endl;
-				}
-			}
-			if (!result)
-				return false;
-		}
-	}
-	else if (object->type == "mesh") {
-		Mesh* mesh = (Mesh*)object;
-
-		point3 hitpos, outNormal;
-
-		bool result = false;
-		int reflections = 0;
-		point3 currentPoint = inPoint;
-		while (!result && reflections < MAX_REFLECTIONS) {
-			mesh->hitmesh(innerVector, currentPoint, outPoint, outNormal, true);
-
-			result = refract(innerVector, outNormal, refraction, outVector);
-
-			if (!result) {
-				point3 R;
-				reflectRay(-innerVector, outNormal, R);
-				innerVector = R;
-				currentPoint = outPoint;
-				reflections++;
-				if (pick)
-					std::cout << "interior reflection at {" << outPoint[0] << ", " << outPoint[1] << ", " << outPoint[2] << "}" << std::endl;
-			}
-		}
-		if(!result)
-			return false;
-	}
-	else if (object->type == "plane") {
-		outPoint = inPoint;
-		outVector = innerVector;
-	}
-	return true;
-}
-
-void light(const point3 &p, const point3 &V, const point3 &N, const Object* object, colour3 &colour, bool pick, int reflectionCount) {
-	Material material = object->material;
-
-	colour3 Kr, Kt = colour3(0.0, 0.0, 0.0);
-
-	colour3 Ka = material.ambient;
-	colour3 Kd = material.diffuse;
-	colour3 Ks = material.specular;
-	float a = material.shininess;
-
-	colour = colour3(0.0, 0.0, 0.0);
-
-	if (!isZero(material.reflective)) {
-		if (pick)
-			std::cout << "reflection:" << std::endl;
-
-		Kr = material.reflective;
-		point3 R;
-		reflectRay(V, N, R);
-		bool hit = trace(p + float(1e-5) * R, p + R, colour, pick, reflectionCount + 1);
-		if (!hit)
-			colour = background_colour;
-
-		if (pick && !hit)
-			std::cout << "no additional objects hit" << std::endl;
-
-		colour = colour * Kr;
-	}
-
-	for (int i = 0; i < Lights.size(); i++) {
-		Light* light = Lights[i];
-
-		if (light->type == "ambient") {
-			colour3 Ia = light->colour;
-
-			colour3 ambient = Ia * Ka;
-			colour = colour + ambient;
-		}
-
-		else if (light->type == "directional") {
-			Directional* directional = (Directional*)light;
-
-			point3 direction = directional->direction;
-			point3 L = glm::normalize(-direction);
-
-			point3 lightPosition = p + float(MAX_T) * L; // virtual position of light for use in shadow test
-
-			colour3 shadow = colour3(1.0, 1.0, 1.0);
-			if (shadowTest(p, lightPosition, shadow)) {
-				colour3 I = directional->colour * shadow;
-
-				addDiffuse(I, Kd, N, L, colour);
-				addSpecular(I, Ks, a, N, L, V, colour);
-			}
-		}
-
-		else if (light->type == "point") {
-			Point* point = (Point*)light;
-
-			point3 position = point->position;
-
-			colour3 shadow = colour3(1.0, 1.0, 1.0);
-			if (shadowTest(p, position, shadow)) {
-				colour3 I = point->colour * shadow;
-				point3 L = glm::normalize(position - p);
-
-				addDiffuse(I, Kd, N, L, colour);
-				addSpecular(I, Ks, a, N, L, V, colour);
-			}
-		}
-
-		else if (light->type == "spot") {
-			Spot* spot = (Spot*)light;
-
-			point3 position = spot->position;
-
-			colour3 shadow = colour3(1.0, 1.0, 1.0);
-			if (shadowTest(p, position, shadow)) {
-				point3 direction = spot->direction;
-				direction = glm::normalize(-direction);
-				float cutoff_degrees = spot->cutoff;
-				float cutoff = cutoff_degrees * M_PI / 180;
-				point3 L = glm::normalize(position - p);
-
-				if (glm::dot(L, direction) > cos(cutoff)) {
-					colour3 I = spot->colour * shadow;
-
-					addDiffuse(I, Kd, N, L, colour);
-					addSpecular(I, Ks, a, N, L, V, colour);
-				}
-			}
-		}
-	}
-
-	if (!isZero(material.transmissive)) {
-		if (pick)
-			std::cout << "refraction:" << std::endl;
-
-		Kt = material.transmissive;
-		colour3 transcolour = colour3(0.0, 0.0, 0.0);
-		point3 transmissionOrigin, transmissionDirection;
-
-		bool result = calcTransRay(p, -V, N, object, transmissionOrigin, transmissionDirection, pick);
-
-		if (result) {
-			if (pick)
-				std::cout << "exit object at {" << transmissionOrigin[0] << ", " << transmissionOrigin[1] << ", " << transmissionOrigin[2] << "}" << std::endl;
-			bool hit = trace(transmissionOrigin, transmissionOrigin + transmissionDirection, transcolour, pick, reflectionCount + 1);
-			if (!hit)
-				transcolour = background_colour;
-
-			if (pick && !hit)
-				std::cout << "no additional objects hit" << std::endl;
-		}
-		else if (pick)
-			std::cout << "ray lost due to too many internal reflections" << std::endl;
-
-		colour = (colour3(1.0, 1.0, 1.0) - Kt) * colour + Kt * transcolour;
-	}
+	return (test1 >= 0 && test2 >= 0 && test3 >= 0) || (test1 <= 0 && test2 <= 0 && test3 <= 0);
 }
 
 /****************************************************************************/
@@ -740,73 +568,24 @@ bool trace(const point3 &e, const point3 &s, colour3 &colour, bool pick, int ref
   // If you want to use this JSON library, https://github.com/nlohmann/json for more information. The code below gives examples of everything you should need: getting named values, iterating over arrays, and converting types.
 
 	if (reflectionCount > MAX_REFLECTIONS) {
+		if (pick)
+			std::cout << "Maximum number of reflections reached." << std::endl;
 		colour = colour3(0, 0, 0);
 		return false;
 	}
 
 	Object* hitObject = NULL;
-	point3 p, N, V;
 	float t_min = MAX_T;
+	point3 d = s - e;
 
-	// traverse the objects
 	for (int i = 0; i < Objects.size(); i++) {
 		Object* object = Objects[i];
-		
-		// every object in the scene will have a "type"
-		if (object->type == "sphere") {
-			Sphere* sphere = (Sphere*)object;
 
-			point3 c = sphere->center;
-			point3 d = s - e;
-			float r = sphere->radius;
-			point3 hitpos;
+		float t = object->rayhit(e, d);
 
-			float t = hitsphere(d, e, c, r, hitpos);
-
-			if (t > 0 && t < t_min) {
-				hitObject = object;
-				p = hitpos;
-				N = glm::normalize(hitpos - c);
-				V = glm::normalize(e - hitpos);
-				t_min = t;
-			}
-		}
-		else if (object->type == "plane") {
-			Plane* plane = (Plane*)object;
-
-			point3 a = plane->point;
-			point3 n = plane->normal;
-			point3 d = s - e;
-			point3 hitpos;
-
-			float t = hitplane(d, e, a, n, hitpos);
-
-			if (t > 0 && t < t_min) {
-				hitObject = object;
-				p = hitpos;
-				N = glm::normalize(n);
-				V = glm::normalize(e - hitpos);
-				t_min = t;
-			}
-		}
-		else if (object->type == "mesh") {
-			Mesh* mesh = (Mesh*)object;
-
-			point3 d = s - e;
-			point3 hitpos;
-			point3 n;
-
-			float t = mesh->hitmesh(d, e, hitpos, n, false);
-
-			if (t > 0 && t < t_min) {
-				hitObject = object;
-				p = hitpos;
-				N = glm::normalize(n);
-				V = glm::normalize(e - hitpos);
-				t_min = t;
-					
-			}
-			
+		if (t > 0 && t < t_min) {
+			hitObject = object;
+			t_min = t;
 		}
 	}
 
@@ -814,9 +593,9 @@ bool trace(const point3 &e, const point3 &s, colour3 &colour, bool pick, int ref
 		return false;
 
 	if (pick)
-		std::cout << "object " << hitObject->type << " hit at {" << p[0] << ", " << p[1] << ", " << p[2] << "}" << std::endl;
+		std::cout << "object " << hitObject->type << " hit at {" << hitObject->cachedHitpoint[0] << ", " << hitObject->cachedHitpoint[1] << ", " << hitObject->cachedHitpoint[2] << "}" << std::endl;
 
-	light(p, V, N, hitObject, colour, pick, reflectionCount);
+	hitObject->lightPoint(e, d, colour, reflectionCount, pick);
 
 	return true;
 }
