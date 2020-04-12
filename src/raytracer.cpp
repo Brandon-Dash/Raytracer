@@ -127,13 +127,11 @@ void choose_scene(char const *fn) {
 			for (int i = 0; i < triangles.size(); i++) {
 				std::vector<json> trianglejson = triangles[i];
 
-				triangle triangle;
+				point3 p0 = vector_to_vec3(trianglejson[0]);
+				point3 p1 = vector_to_vec3(trianglejson[1]);
+				point3 p2 = vector_to_vec3(trianglejson[2]);
 
-				triangle[0] = vector_to_vec3(trianglejson[0]);
-				triangle[1] = vector_to_vec3(trianglejson[1]);
-				triangle[2] = vector_to_vec3(trianglejson[2]);
-
-				mesh->triangles.push_back(triangle);
+				mesh->triangles.push_back(new Triangle(mesh, p0, p1, p2, material));
 			}
 
 			Objects.push_back(mesh);

@@ -10,10 +10,11 @@
 
 typedef glm::vec3 point3;
 typedef glm::vec3 colour3;
-typedef std::array<point3, 3> triangle;
+
+class Mesh;
 
 struct BoundingBox {
-	float minX, maxX, miny, maxY, minz, maxZ;
+	float minX, maxX, minY, maxY, minZ, maxZ;
 };
 
 struct Material {
@@ -64,7 +65,7 @@ public:
 	BoundingBox boundingBox;
 	point3 cachedHitpoint;
 	virtual float rayhit(point3 e, point3 d, bool exit = false) = 0;
-	virtual void getNormal(point3& n) = 0;
+	virtual void getNormal(point3 &n) = 0;
 	void lightPoint(point3 e, point3 d, std::vector<Light*> Lights, colour3& colour, int reflectionCount, bool pick);
 	virtual bool transmitRay(point3 inPoint, point3 inVector, point3 inNormal, point3& outPoint, point3& outVector, bool pick);
 };
@@ -75,7 +76,7 @@ public:
 	float radius;
 	Sphere(point3 center, float radius, Material material);
 	float rayhit(point3 e, point3 d, bool exit);
-	void getNormal(point3& n);
+	void getNormal(point3 &n);
 };
 
 class Plane : public Object {
@@ -83,6 +84,17 @@ public:
 	point3 point;
 	point3 normal;
 	Plane(point3 point, point3 normal, Material material);
+	float rayhit(point3 e, point3 d, bool exit);
+	void getNormal(point3 &n);
+	bool transmitRay(point3 inPoint, point3 inVector, point3 inNormal, point3& outPoint, point3& outVector, bool pick);
+};
+
+class Triangle : public Object {
+public:
+	std::array<point3, 3> points;
+	point3 normal;
+	Mesh* mesh;
+	Triangle(Mesh* mesh, point3 p0, point3 p1, point3 p2, Material material);
 	float rayhit(point3 e, point3 d, bool exit);
 	void getNormal(point3& n);
 	bool transmitRay(point3 inPoint, point3 inVector, point3 inNormal, point3& outPoint, point3& outVector, bool pick);
@@ -92,10 +104,10 @@ class Mesh : public Object {
 private:
 	point3 cachedHitNormal;
 public:
-	std::vector<triangle> triangles;
+	std::vector<Triangle*> triangles;
 	Mesh(Material material);
 	float rayhit(point3 e, point3 d, bool exit);
-	void getNormal(point3& n);
+	void getNormal(point3 &n);
 };
 
 #endif

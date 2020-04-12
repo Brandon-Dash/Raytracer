@@ -111,9 +111,9 @@ Sphere::Sphere(point3 center, float radius, Material material) {
 	type = "sphere";
 	boundingBox.minX = center.x - radius;
 	boundingBox.maxX = center.x + radius;
-	boundingBox.miny = center.y - radius;
+	boundingBox.minY = center.y - radius;
 	boundingBox.maxY = center.y + radius;
-	boundingBox.minz = center.z - radius;
+	boundingBox.minZ = center.z - radius;
 	boundingBox.maxZ = center.z + radius;
 }
 
@@ -182,6 +182,44 @@ bool Plane::transmitRay(point3 inPoint, point3 inVector, point3 inNormal, point3
 
 /****************************************************************************/
 
+// Triangle
+
+Triangle::Triangle(Mesh* mesh, point3 p0, point3 p1, point3 p2, Material material) {
+	this->type = "triangle";
+	this->material = material;
+	this->mesh = mesh;
+	this->points[0] = p0;
+	this->points[1] = p1;
+	this->points[2] = p2;
+	this->normal = glm::normalize(glm::cross(p1 - p0, p2 - p1));
+	boundingBox.minX = std::min({ points[0].x, points[1].x, points[2].x });
+	boundingBox.maxX = std::max({ points[0].x, points[1].x, points[2].x });
+	boundingBox.minY = std::min({ points[0].y, points[1].y, points[2].y });
+	boundingBox.maxY = std::max({ points[0].y, points[1].y, points[2].y });
+	boundingBox.minZ = std::min({ points[0].z, points[1].z, points[2].z });
+	boundingBox.maxZ = std::max({ points[0].z, points[1].z, points[2].z });
+}
+
+float Triangle::rayhit(point3 e, point3 d, bool exit) {
+	float t = Plane(points[0], normal, material).rayhit(e, d, exit);
+	point3 hitpos = e + t * d;
+
+	if (t <= 0 || !pointInTriangle(hitpos, points[0], points[1], points[2], normal))
+		return 0;
+	else
+		return t;
+}
+
+void Triangle::getNormal(point3& n) {
+	n = normal;
+}
+
+bool Triangle::transmitRay(point3 inPoint, point3 inVector, point3 inNormal, point3& outPoint, point3& outVector, bool pick) {
+	return mesh->transmitRay(inPoint, inVector, inNormal, outPoint, outVector, pick);
+}
+
+/****************************************************************************/
+
 // Mesh
 
 Mesh::Mesh(Material material) {
@@ -193,20 +231,14 @@ float Mesh::rayhit(point3 e, point3 d, bool exit) {
 	float t_min = MAX_T;
 
 	for (int i = 0; i < triangles.size(); i++) {
-		triangle triangle = triangles[i];
+		Triangle* triangle = triangles[i];
 
-		point3 p1 = triangle[0];
-		point3 p2 = triangle[1];
-		point3 p3 = triangle[2];
-
-		point3 n = glm::cross(p2 - p1, p3 - p2);
-
-		float t = Plane(p1, n, material).rayhit(e, d, exit);
+		float t = triangle->rayhit(e, d, exit);
 		point3 hitpos = e + t * d;
 
-		if (t > 0.0 && t < t_min && pointInTriangle(hitpos, p1, p2, p3, n)) {
+		if (t > 0.0 && t < t_min) {
 			cachedHitpoint = hitpos;
-			cachedHitNormal = glm::normalize(n);
+			triangle->getNormal(cachedHitNormal);
 			t_min = t;
 		}
 	}
