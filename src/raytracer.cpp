@@ -3,6 +3,7 @@
 #include "raytracer.h"
 #include "objects.h"
 #include "raymath.h"
+#include "bvh.h"
 
 #include <iostream>
 #include <fstream>
@@ -24,6 +25,8 @@ json scene;
 std::vector<Object*> Objects;
 std::vector<Light*> Lights;
 
+BVH* bvh;
+
 /****************************************************************************/
 
 // Helper functions
@@ -33,6 +36,8 @@ glm::vec3 vector_to_vec3(const std::vector<float> &v) {
 }
 
 /****************************************************************************/
+
+// additional ray functions
 
 bool shadowRay(const point3 &point, const point3 &lightPos, point3 &shadow) {
 	point3 direction = lightPos - point;
@@ -165,6 +170,10 @@ void choose_scene(char const *fn) {
 			Lights.push_back(new Spot(colour, position, direction, cutoff));
 		}
 	}
+
+	// Create the BVH
+
+	bvh = new BVH(Objects);
 }
 
 bool trace(const point3 &e, const point3 &s, colour3 &colour, bool pick, int reflectionCount) {

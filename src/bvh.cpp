@@ -45,7 +45,7 @@ void BVH::splitNode(BVH_node* node, int depth) {
 	if (lengthX >= lengthY && lengthX >= lengthZ) {
 		node->sortObjects(0);
 	}
-	else if (lengthY <= lengthZ) {
+	else if (lengthY >= lengthZ) {
 		node->sortObjects(1);
 	}
 	else {
