@@ -142,6 +142,10 @@ void Sphere::getNormal(point3& n) {
 	n = glm::normalize(cachedHitpoint - center);
 }
 
+void Sphere::getCentroid(point3& c) {
+	c = center;
+}
+
 /****************************************************************************/
 
 // Plane
@@ -171,6 +175,11 @@ float Plane::rayhit(point3 e, point3 d, bool exit) {
 
 void Plane::getNormal(point3& n) {
 	n = glm::normalize(normal);
+}
+
+void Plane::getCentroid(point3& c) {
+	// shouldn't be called for planes
+	throw std::exception("Not implemented.");
 }
 
 bool Plane::transmitRay(point3 inPoint, point3 inVector, point3 inNormal, point3& outPoint, point3& outVector, bool pick) {
@@ -214,6 +223,12 @@ void Triangle::getNormal(point3& n) {
 	n = normal;
 }
 
+void Triangle::getCentroid(point3& c) {
+	c.x = (points[0].x + points[1].x + points[2].x) / 3;
+	c.y = (points[0].y + points[1].y + points[2].y) / 3;
+	c.z = (points[0].z + points[1].z + points[2].z) / 3;
+}
+
 bool Triangle::transmitRay(point3 inPoint, point3 inVector, point3 inNormal, point3& outPoint, point3& outVector, bool pick) {
 	return mesh->transmitRay(inPoint, inVector, inNormal, outPoint, outVector, pick);
 }
@@ -249,6 +264,11 @@ float Mesh::rayhit(point3 e, point3 d, bool exit) {
 
 void Mesh::getNormal(point3& n) {
 	n = cachedHitNormal;
+}
+
+void Mesh::getCentroid(point3& c) {
+	// shouldn't be called for meshes
+	throw std::exception("Not implemented.");
 }
 
 /****************************************************************************/
