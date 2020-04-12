@@ -213,3 +213,28 @@ bool trace(const point3 &e, const point3 &s, colour3 &colour, bool pick, int ref
 
 	return true;
 }
+
+bool traceBVH(const point3& e, const point3& s, colour3& colour, bool pick, int reflectionCount) {
+	if (reflectionCount > MAX_REFLECTIONS) {
+		if (pick)
+			std::cout << "Maximum number of reflections reached." << std::endl;
+		colour = colour3(0, 0, 0);
+		return false;
+	}
+
+	Object* hitObject = NULL;
+	float t_min = MAX_T;
+	point3 d = s - e;
+
+	// Find hit using BVH
+
+	if (hitObject == NULL)
+		return false;
+
+	if (pick)
+		std::cout << "object " << hitObject->type << " hit at {" << hitObject->cachedHitpoint[0] << ", " << hitObject->cachedHitpoint[1] << ", " << hitObject->cachedHitpoint[2] << "}" << std::endl;
+
+	hitObject->lightPoint(e, d, Lights, colour, reflectionCount, pick);
+
+	return true;
+}
