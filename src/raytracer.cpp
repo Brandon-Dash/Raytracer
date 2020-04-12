@@ -39,23 +39,8 @@ glm::vec3 vector_to_vec3(const std::vector<float> &v) {
 
 // additional ray functions
 
-bool shadowRay(const point3 &point, const point3 &lightPos, point3 &shadow) {
-	point3 direction = lightPos - point;
-
-	for (int i = 0; i < Objects.size(); i++) {
-		Object* object = Objects[i];
-
-		float t = object->rayhit(point, direction);
-		if (t < 1.0 && t * glm::length(lightPos - point) > 1e-5) {
-			Material material = object->material;
-			if (!isZero(material.transmissive)) {
-				shadow *= material.transmissive;
-			}
-			else
-				return false;
-		}
-	}
-	return true;
+bool shadowRay(const point3& point, const point3& lightPos, point3& shadow) {
+	return bvh->calcShadow(point, lightPos, shadow);
 }
 
 /****************************************************************************/
@@ -176,11 +161,7 @@ void choose_scene(char const *fn) {
 	bvh = new BVH(Objects);
 }
 
-bool trace(const point3 &e, const point3 &s, colour3 &colour, bool pick, int reflectionCount) {
-	// NOTE 1: This is a demo, not ray tracing code! You will need to replace all of this with your own code...
-  // NOTE 2: You can work with JSON objects directly (like this sample code), read the JSON objects into your own data structures once and render from those (probably in choose_scene), or hard-code the objects in your own data structures and choose them by name in choose_scene; e.g. choose_scene('e') would pick the same scene as the one in "e.json". Your choice.
-  // If you want to use this JSON library, https://github.com/nlohmann/json for more information. The code below gives examples of everything you should need: getting named values, iterating over arrays, and converting types.
-
+bool trace(const point3& e, const point3& s, colour3& colour, bool pick, int reflectionCount) {
 	if (reflectionCount > MAX_REFLECTIONS) {
 		if (pick)
 			std::cout << "Maximum number of reflections reached." << std::endl;
@@ -189,44 +170,9 @@ bool trace(const point3 &e, const point3 &s, colour3 &colour, bool pick, int ref
 	}
 
 	Object* hitObject = NULL;
-	float t_min = MAX_T;
 	point3 d = s - e;
 
-	for (int i = 0; i < Objects.size(); i++) {
-		Object* object = Objects[i];
-
-		float t = object->rayhit(e, d);
-
-		if (t > 0 && t < t_min) {
-			hitObject = object;
-			t_min = t;
-		}
-	}
-
-	if (hitObject == NULL)
-		return false;
-
-	if (pick)
-		std::cout << "object " << hitObject->type << " hit at {" << hitObject->cachedHitpoint[0] << ", " << hitObject->cachedHitpoint[1] << ", " << hitObject->cachedHitpoint[2] << "}" << std::endl;
-
-	hitObject->lightPoint(e, d, Lights, colour, reflectionCount, pick);
-
-	return true;
-}
-
-bool traceBVH(const point3& e, const point3& s, colour3& colour, bool pick, int reflectionCount) {
-	if (reflectionCount > MAX_REFLECTIONS) {
-		if (pick)
-			std::cout << "Maximum number of reflections reached." << std::endl;
-		colour = colour3(0, 0, 0);
-		return false;
-	}
-
-	Object* hitObject = NULL;
-	float t_min = MAX_T;
-	point3 d = s - e;
-
-	// Find hit using BVH
+	hitObject = bvh->findNearest(e, d);
 
 	if (hitObject == NULL)
 		return false;

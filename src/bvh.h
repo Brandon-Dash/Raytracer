@@ -20,8 +20,12 @@ public:
 	BVH_node* root;
 	std::vector<Plane*> planes;
 	BVH(std::vector<Object*> objects);
+	Object* findNearest(point3 e, point3 d);
+	bool calcShadow(point3 point, point3 lightPos, colour3& shadow);
 private:
 	void splitNode(BVH_node* node, int depth = 0);
+	float findRecursive(BVH_node* node, point3 e, point3 d, float t_min, Object* &hitObject);
+	bool shadowRecursive(BVH_node* node, point3 e, point3 d, colour3& shadow);
 };
 
 #endif

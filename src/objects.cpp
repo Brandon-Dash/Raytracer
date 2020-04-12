@@ -246,8 +246,10 @@ float Triangle::rayhit(point3 e, point3 d, bool exit) {
 
 	if (t <= 0 || !pointInTriangle(hitpos, points[0], points[1], points[2], normal))
 		return 0;
-	else
+	else {
+		cachedHitpoint = e + t * d;
 		return t;
+	}
 }
 
 void Triangle::getNormal(point3& n) {

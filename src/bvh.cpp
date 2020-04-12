@@ -1,4 +1,7 @@
 #include "bvh.h"
+#include "raymath.h"
+
+#define MAX_T 10000
 
 BVH::BVH(std::vector<Object*> objects) {
 	// create list of all objects to be put into the tree, and separate out the planes
@@ -64,6 +67,98 @@ void BVH::splitNode(BVH_node* node, int depth) {
 
 	splitNode(node->left, depth + 1);
 	splitNode(node->right, depth + 1);
+}
+
+Object* BVH::findNearest(point3 e, point3 d) {
+	float t_min = MAX_T;
+	Object* hitObject = NULL;
+
+	// first find nearest plane
+	for (int i = 0; i < planes.size(); i++) {
+		Plane* plane = planes[i];
+
+		float t = plane->rayhit(e, d);
+
+		if (t > 0 && t < t_min) {
+			hitObject = plane;
+			t_min = t;
+		}
+	}
+
+	// search BVH for nearest object hit (must be closer than nearest plane)
+	findRecursive(root, e, d, t_min, hitObject);
+
+	return hitObject;
+}
+
+float BVH::findRecursive(BVH_node* node, point3 e, point3 d, float t_min, Object* &hitObject) {
+	float t;
+
+	t = node->boundingBox.intersect(e, d);
+
+	if (t < 0 || t > t_min)
+		return -1;
+
+	if (node->left != NULL) {
+		// continue into tree
+		t = findRecursive(node->left, e, d, t_min, hitObject);
+		if (t > 0 && t < t_min) t_min = t;
+		t = findRecursive(node->right, e, d, t_min, hitObject);
+		if (t > 0 && t < t_min) t_min = t;
+	}
+	else {
+		// leaf node: hit test objects
+		for (int i = 0; i < node->objects.size(); i++) {
+			Object* object = node->objects[i];
+
+			t = object->rayhit(e, d);
+
+			if (t > 0 && t < t_min) {
+				hitObject = object;
+				t_min = t;
+			}
+		}
+	}
+	return t_min;
+}
+
+bool BVH::calcShadow(point3 point, point3 lightPos, colour3& shadow) {
+	point3 direction = lightPos - point;
+	return shadowRecursive(root, point, direction, shadow);
+}
+
+bool BVH::shadowRecursive(BVH_node* node, point3 e, point3 d, colour3& shadow) {
+	// the key concept here is to stop testing for intersections as soon as we
+	// know the point is in shadow
+	float t = node->boundingBox.intersect(e, d);
+
+	if (t < 0 || t > 1)
+		return true;
+
+	if (node->left != NULL) {
+		// continue into tree
+		if (shadowRecursive(node->left, e, d, shadow) == false)
+			return false;
+		if (shadowRecursive(node->right, e, d, shadow) == false)
+			return false;
+	}
+	else {
+		// leaf node: test objects
+		for (int i = 0; i < node->objects.size(); i++) {
+			Object* object = node->objects[i];
+
+			float t = object->rayhit(e, d);
+			if (t < 1.0 && t * glm::length(d) > 1e-5) {
+				Material material = object->material;
+				if (!isZero(material.transmissive)) {
+					shadow *= material.transmissive;
+				}
+				else
+					return false;
+			}
+		}
+	}
+	return true;
 }
 
 BVH_node::BVH_node(std::vector<Object*> objects) {

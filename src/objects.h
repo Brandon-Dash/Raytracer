@@ -87,7 +87,7 @@ public:
 	point3 point;
 	point3 normal;
 	Plane(point3 point, point3 normal, Material material);
-	float rayhit(point3 e, point3 d, bool exit);
+	float rayhit(point3 e, point3 d, bool exit = false);
 	void getNormal(point3 &n);
 	void getCentroid(point3& c);
 	bool transmitRay(point3 inPoint, point3 inVector, point3 inNormal, point3& outPoint, point3& outVector, bool pick);
