@@ -330,10 +330,10 @@ Spot::Spot(point3 colour, point3 position, point3 direction, float cutoff) {
 void Spot::lightPoint(point3 p, point3 N, point3 V, Material material, colour3& pointColour) {
 	colour3 shadow = colour3(1.0, 1.0, 1.0);
 	if (shadowRay(p, position, shadow)) {
-		direction = -direction;
+		point3 dir = -direction;
 		point3 L = glm::normalize(position - p);
 
-		if (glm::dot(L, direction) > cos(cutoff * M_PI / 180)) {
+		if (glm::dot(L, dir) > cos(cutoff * M_PI / 180)) {
 			colour3 I = colour * shadow;
 
 			addDiffuse(I, material.diffuse, N, L, pointColour);
