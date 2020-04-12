@@ -15,6 +15,7 @@ class Mesh;
 
 struct BoundingBox {
 	float minX, maxX, minY, maxY, minZ, maxZ;
+	float intersect(point3 e, point3 d);
 };
 
 struct Material {

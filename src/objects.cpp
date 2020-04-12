@@ -6,6 +6,37 @@
 
 /****************************************************************************/
 
+// Bounding box
+
+float BoundingBox::intersect(point3 e, point3 d) {
+	// This code is taken from the lecture slide for Kay-Kajiya intersection.
+	// return value -1 means miss, 0 means ray is originating inside the box
+	float tnear = -MAX_T;
+	float tfar = MAX_T;
+
+	float min[3] = { minX, minY, minZ };
+	float max[3] = { maxX, maxY, maxZ };
+
+	for (int axis = 0; axis < 3; axis++) {
+		if (d[axis] == 0 && (e[axis] < min[axis] || e[axis] > max[axis]))
+			return -1;
+		float t1 = (min[axis] - e[axis]) / d[axis];
+		float t2 = (max[axis] - e[axis]) / d[axis];
+		if (t1 > t2) std::swap(t1, t2);
+		if (t1 > tnear) tnear = t1;
+		if (t2 < tfar) tfar = t2;
+		if (tnear > tfar) return -1;
+		if (tfar < 0) return -1;
+	}
+	
+	if (tnear < 0)
+		return 0;
+	else
+		return tnear;
+}
+
+/****************************************************************************/
+
 // Objects
 
 /****************************************************************************/
