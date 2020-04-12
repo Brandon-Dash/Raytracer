@@ -1,7 +1,7 @@
 #ifndef BVH_H
 #define BVH_H
 
-#include "raytracer.h"
+#include "objects.h"
 
 class BVH {
 public:
@@ -11,7 +11,7 @@ public:
 class BVH_node {
 	BVH_node* left;
 	BVH_node* right;
-
+	std::vector<Object*> objects;
 };
 
 #endif

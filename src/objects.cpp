@@ -109,6 +109,12 @@ Sphere::Sphere(point3 center, float radius, Material material) {
 	this->radius = radius;
 	this->material = material;
 	type = "sphere";
+	boundingBox.minX = center.x - radius;
+	boundingBox.maxX = center.x + radius;
+	boundingBox.miny = center.y - radius;
+	boundingBox.maxY = center.y + radius;
+	boundingBox.minz = center.z - radius;
+	boundingBox.maxZ = center.z + radius;
 }
 
 float Sphere::rayhit(point3 e, point3 d, bool exit) {

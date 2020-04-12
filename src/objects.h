@@ -12,6 +12,10 @@ typedef glm::vec3 point3;
 typedef glm::vec3 colour3;
 typedef std::array<point3, 3> triangle;
 
+struct BoundingBox {
+	float minX, maxX, miny, maxY, minz, maxZ;
+};
+
 struct Material {
 	colour3 ambient = colour3(0, 0, 0);
 	colour3 diffuse = colour3(0, 0, 0);
@@ -57,6 +61,7 @@ class Object {
 public:
 	std::string type;
 	Material material;
+	BoundingBox boundingBox;
 	point3 cachedHitpoint;
 	virtual float rayhit(point3 e, point3 d, bool exit = false) = 0;
 	virtual void getNormal(point3& n) = 0;
