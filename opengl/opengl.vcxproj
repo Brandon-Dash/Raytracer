@@ -88,6 +88,8 @@
     <ClInclude Include="..\src\bvh.h" />
     <ClInclude Include="..\src\common.h" />
     <ClInclude Include="..\src\json.hpp" />
+    <ClInclude Include="..\src\objects.h" />
+    <ClInclude Include="..\src\raymath.h" />
     <ClInclude Include="..\src\raytracer.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
@@ -95,7 +97,9 @@
   <ItemGroup>
     <ClCompile Include="..\src\bvh.cpp" />
     <ClCompile Include="..\src\main.cpp" />
+    <ClCompile Include="..\src\objects.cpp" />
     <ClCompile Include="..\src\q1.cpp" />
+    <ClCompile Include="..\src\raymath.cpp" />
     <ClCompile Include="..\src\raytracer.cpp" />
   </ItemGroup>
   <ItemGroup>
