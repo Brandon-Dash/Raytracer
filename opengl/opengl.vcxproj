@@ -91,6 +91,7 @@
     <ClInclude Include="..\src\objects.h" />
     <ClInclude Include="..\src\raymath.h" />
     <ClInclude Include="..\src\raytracer.h" />
+    <ClInclude Include="..\src\texturemesh.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
@@ -101,6 +102,7 @@
     <ClCompile Include="..\src\q1.cpp" />
     <ClCompile Include="..\src\raymath.cpp" />
     <ClCompile Include="..\src\raytracer.cpp" />
+    <ClCompile Include="..\src\texturemesh.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\src\f.glsl" />
