@@ -16,6 +16,9 @@
     <Filter Include="Scenes">
       <UniqueIdentifier>{1a1dcb52-4863-4e0c-83fd-c6b8d7938606}</UniqueIdentifier>
     </Filter>
+    <Filter Include="EasyBMP">
+      <UniqueIdentifier>{78bc16d7-819a-4524-921d-bbd950bdcdd9}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stdafx.h">
@@ -45,6 +48,18 @@
     <ClInclude Include="..\src\texturemesh.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\EasyBMP\EasyBMP_BMP.h">
+      <Filter>EasyBMP</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\EasyBMP\EasyBMP_DataStructures.h">
+      <Filter>EasyBMP</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\EasyBMP\EasyBMP_VariousBMPutilities.h">
+      <Filter>EasyBMP</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\EasyBMP\EasyBMP.h">
+      <Filter>EasyBMP</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\main.cpp">
@@ -67,6 +82,9 @@
     </ClCompile>
     <ClCompile Include="..\src\texturemesh.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\EasyBMP\EasyBMP.cpp">
+      <Filter>EasyBMP</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

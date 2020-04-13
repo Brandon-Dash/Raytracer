@@ -87,6 +87,10 @@
   <ItemGroup>
     <ClInclude Include="..\src\bvh.h" />
     <ClInclude Include="..\src\common.h" />
+    <ClInclude Include="..\src\EasyBMP\EasyBMP.h" />
+    <ClInclude Include="..\src\EasyBMP\EasyBMP_BMP.h" />
+    <ClInclude Include="..\src\EasyBMP\EasyBMP_DataStructures.h" />
+    <ClInclude Include="..\src\EasyBMP\EasyBMP_VariousBMPutilities.h" />
     <ClInclude Include="..\src\json.hpp" />
     <ClInclude Include="..\src\objects.h" />
     <ClInclude Include="..\src\raymath.h" />
@@ -97,6 +101,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\bvh.cpp" />
+    <ClCompile Include="..\src\EasyBMP\EasyBMP.cpp" />
     <ClCompile Include="..\src\main.cpp" />
     <ClCompile Include="..\src\objects.cpp" />
     <ClCompile Include="..\src\q1.cpp" />
