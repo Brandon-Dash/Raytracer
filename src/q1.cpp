@@ -8,6 +8,7 @@
 #include <cmath>
 
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 const char *WINDOW_TITLE = "Ray Tracing";
 const double FRAME_RATE_MS = 1;
@@ -20,6 +21,20 @@ float drawing_y = 0;
 
 point3 eye;
 float d = 1;
+
+// added variables for moving camera
+float rotationX, rotationY;
+float move_step = 0.5;
+float rotate_step = M_PI / 8;
+point3 facing(0, 0, -1);
+void setFacing() {
+	facing = point3(-sin(rotationY) * cos(rotationX), sin(rotationX), -cos(rotationY) * cos(rotationX));
+
+	for (int i = 0; i < 3; i++) {
+		if (abs(facing[i]) < 1e-5)
+			facing[i] = 0;
+	}
+}
 
 //----------------------------------------------------------------------------
 
@@ -35,8 +50,18 @@ point3 s(int x, int y) {
    
 	float u = left + (right - left) * (x + 0.5f) / vp_width;
 	float v = bottom + (top - bottom) * (y + 0.5f) / vp_height;
-   
-	return point3(u, v, -d);
+
+	glm::vec4 s(u, v, -d, 1);
+
+	// transform point s according to camera position and rotation
+
+	glm::mat4 trans;
+	trans = glm::translate(trans, eye);
+	trans = glm::rotate(trans, rotationY, glm::vec3(0, 1, 0));
+	trans = glm::rotate(trans, rotationX, glm::vec3(1, 0, 0));
+
+	s = trans * s;
+	return point3(s.x, s.y, s.z);
 }
 
 //----------------------------------------------------------------------------
@@ -94,7 +119,9 @@ void display( void ) {
 		drawing_y += 0.5;
 
 	} else if (drawing_y >= 1.0 && drawing_y <= vp_height + 0.5) {
-		int y = int(drawing_y) - 1;
+		//int y = int(drawing_y) - 1;
+		// draw every 16th row, making 16 passes to fill the screen
+		int y = ((int(drawing_y) - 1) * 16 % vp_height) + (((int(drawing_y) - 1) * 16) / vp_height) * 7 % 16;
 
 		// only recalculate if this is a new scanline
 		if (drawing_y == int(drawing_y)) {
@@ -138,11 +165,64 @@ void display( void ) {
 void keyboard( unsigned char key, int x, int y ) {
 	switch( key ) {
 	case 033: // Escape Key
-	case 'q': case 'Q':
 		exit( EXIT_SUCCESS );
 		break;
 	case ' ':
 		drawing_y = 1;
+		break;
+
+	// camera controls
+	case 'w':
+		eye += facing * move_step;
+		drawing_y = 0;
+		break;
+	case 's':
+		eye -= facing * move_step;
+		drawing_y = 0;
+		break;
+	case 'a':
+		eye -= glm::normalize(glm::cross(point3(-sin(rotationY), 0, -cos(rotationY)), point3(0, 1, 0))) * move_step;
+		drawing_y = 0;
+		break;
+	case 'd':
+		eye += glm::normalize(glm::cross(point3(-sin(rotationY), 0, -cos(rotationY)), point3(0, 1, 0))) * move_step;
+		drawing_y = 0;
+		break;
+	case 'q':
+		rotationY += rotate_step;
+		setFacing();
+		drawing_y = 0;
+		break;
+	case 'e':
+		rotationY -= rotate_step;
+		setFacing();
+		drawing_y = 0;
+		break;
+	case 'r':
+		if (rotationX < M_PI / 2) {
+			rotationX += rotate_step;
+			setFacing();
+			drawing_y = 0;
+		}
+		break;
+	case 'f':
+		if (rotationX > -M_PI / 2) {
+			rotationX -= rotate_step;
+			setFacing();
+			drawing_y = 0;
+		}
+		break;
+	case 't':
+		eye += point3(0, move_step, 0);
+		drawing_y = 0;
+		break;
+	case 'g':
+		eye += point3(0, -move_step, 0);
+		drawing_y = 0;
+		break;
+	case 'p':
+		std::cout << "camera: (" << eye.x << ", " << eye.y << ", " << eye.z << ")" << std::endl;
+		std::cout << "facing: <" << facing.x << ", " << facing.y << ", " << facing.z << ">" << std::endl << std::endl;
 		break;
 	}
 }
