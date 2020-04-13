@@ -113,7 +113,7 @@ float BVH::findRecursive(BVH_node* node, point3 e, point3 d, float t_min, Object
 
 			t = object->rayhit(e, d);
 
-			if (t > 0 && t < t_min) {
+			if (t > 1e-5 && t < t_min) {
 				hitObject = object;
 				t_min = t;
 			}
