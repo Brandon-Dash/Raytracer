@@ -97,14 +97,12 @@ float BVH::findRecursive(BVH_node* node, point3 e, point3 d, float t_min, Object
 	t = node->boundingBox.intersect(e, d);
 
 	if (t < 0 || t > t_min)
-		return -1;
+		return t_min;
 
 	if (node->left != NULL) {
 		// continue into tree
-		t = findRecursive(node->left, e, d, t_min, hitObject);
-		if (t > 0 && t < t_min) t_min = t;
-		t = findRecursive(node->right, e, d, t_min, hitObject);
-		if (t > 0 && t < t_min) t_min = t;
+		t_min = findRecursive(node->left, e, d, t_min, hitObject);
+		t_min = findRecursive(node->right, e, d, t_min, hitObject);
 	}
 	else {
 		// leaf node: hit test objects
