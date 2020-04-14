@@ -1,4 +1,8 @@
-#include "texturemesh.h";
+#include "texturemesh.h"
+
+TextureMesh::TextureMesh(Material material, std::string texturefile) : Mesh::Mesh(material) {
+	this->texture.ReadFromFile(texturefile.c_str());
+}
 
 void TextureMesh::getTexValue(float u, float v, colour3& colour) {
 	// get the colour value at coordinates (u,v) in the texture map
@@ -6,9 +10,16 @@ void TextureMesh::getTexValue(float u, float v, colour3& colour) {
 	int width = texture.TellWidth();
 
 	RGBApixel* pixel = texture(int(u * width), int(v * height));
-	colour.r = pixel->Red;
-	colour.g = pixel->Green;
-	colour.b = pixel->Blue;
+	colour.r = float(pixel->Red) / 255;
+	colour.g = float(pixel->Green) / 255;
+	colour.b = float(pixel->Blue) / 255;
+}
+
+TextureTriangle::TextureTriangle(Mesh* mesh, point3 p0, point3 p1, point3 p2, uvCoord uv0, uvCoord uv1, uvCoord uv2, Material material) :
+	Triangle::Triangle(mesh, p0, p1, p2, material) {
+	uvCoords[0] = uv0;
+	uvCoords[1] = uv1;
+	uvCoords[2] = uv2;
 }
 
 void TextureTriangle::lightPoint(point3 e, point3 d, std::vector<Light*> Lights, colour3& colour, int reflectionCount, bool pick) {

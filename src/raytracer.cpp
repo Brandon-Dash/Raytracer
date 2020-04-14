@@ -4,6 +4,7 @@
 #include "objects.h"
 #include "raymath.h"
 #include "bvh.h"
+#include "texturemesh.h"
 
 #include <iostream>
 #include <fstream>
@@ -33,6 +34,10 @@ BVH* bvh;
 
 glm::vec3 vector_to_vec3(const std::vector<float> &v) {
 	return glm::vec3(v[0], v[1], v[2]);
+}
+
+glm::vec2 vector_to_vec2(const std::vector<float>& v) {
+	return glm::vec2(v[0], v[1]);
 }
 
 /****************************************************************************/
@@ -122,6 +127,31 @@ void choose_scene(char const *fn) {
 				point3 p2 = vector_to_vec3(trianglejson[2]);
 
 				mesh->triangles.push_back(new Triangle(mesh, p0, p1, p2, material));
+			}
+
+			Objects.push_back(mesh);
+		}
+
+		if (object["type"] == "texturemesh") {
+			std::vector<json> triangles = object["triangles"];
+			std::vector<json> uvCoords = object["uvCoords"];
+			std::string texturefile = object["texture"];
+
+			TextureMesh* mesh = new TextureMesh(material, PATH + texturefile);
+
+			for (int i = 0; i < triangles.size(); i++) {
+				std::vector<json> trianglejson = triangles[i];
+				std::vector<json> uvjson = uvCoords[i];
+
+				point3 p0 = vector_to_vec3(trianglejson[0]);
+				point3 p1 = vector_to_vec3(trianglejson[1]);
+				point3 p2 = vector_to_vec3(trianglejson[2]);
+
+				uvCoord uv0 = vector_to_vec2(uvjson[0]);
+				uvCoord uv1 = vector_to_vec2(uvjson[1]);
+				uvCoord uv2 = vector_to_vec2(uvjson[2]);
+
+				mesh->triangles.push_back(new TextureTriangle(mesh, p0, p1, p2, uv0, uv1, uv2, material));
 			}
 
 			Objects.push_back(mesh);

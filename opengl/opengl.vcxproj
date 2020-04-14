@@ -120,6 +120,7 @@
     <None Include="..\src\scenes\g.json" />
     <None Include="..\src\scenes\h.json" />
     <None Include="..\src\scenes\i.json" />
+    <None Include="..\src\scenes\j.json" />
     <None Include="..\src\v.glsl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
