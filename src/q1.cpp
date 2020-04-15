@@ -23,10 +23,10 @@ point3 eye;
 float d = 1;
 
 // added variables for moving camera
-float rotationX, rotationY;
+float rotationX, rotationY = 0;
 float move_step = 0.5;
 float rotate_step = M_PI / 8;
-point3 facing(0, 0, -1);
+point3 facing, camera_right, camera_up;
 void setFacing() {
 	facing = point3(-sin(rotationY) * cos(rotationX), sin(rotationX), -cos(rotationY) * cos(rotationX));
 
@@ -34,34 +34,20 @@ void setFacing() {
 		if (abs(facing[i]) < 1e-5)
 			facing[i] = 0;
 	}
+
+	float aspect_ratio = (float)vp_width / vp_height;
+	float h = d * (float)tan((M_PI * fov) / 180.0 / 2.0);
+	float w = h * aspect_ratio;
+
+	camera_right = glm::normalize(glm::cross(point3(-sin(rotationY), 0, -cos(rotationY)), point3(0, 1, 0))) * w;
+	camera_up = glm::normalize(glm::cross(camera_right, facing)) * h;
 }
 
 //----------------------------------------------------------------------------
 
 point3 s(int x, int y) {
-	float aspect_ratio = (float)vp_width / vp_height;
-	float h = d * (float)tan((M_PI * fov) / 180.0 / 2.0);
-	float w = h * aspect_ratio;
    
-	float top = h;
-	float bottom = -h;
-	float left = -w;
-	float right = w;
-   
-	float u = left + (right - left) * (x + 0.5f) / vp_width;
-	float v = bottom + (top - bottom) * (y + 0.5f) / vp_height;
-
-	glm::vec4 s(u, v, -d, 1);
-
-	// transform point s according to camera position and rotation
-
-	glm::mat4 trans;
-	trans = glm::translate(trans, eye);
-	trans = glm::rotate(trans, rotationY, glm::vec3(0, 1, 0));
-	trans = glm::rotate(trans, rotationX, glm::vec3(1, 0, 0));
-
-	s = trans * s;
-	return point3(s.x, s.y, s.z);
+	return eye + facing + camera_right * (2 * ((x + 0.5f) / vp_width - 0.5f)) + camera_up * (2 * ((y + 0.5f) / vp_height - 0.5f));
 }
 
 //----------------------------------------------------------------------------
@@ -115,6 +101,8 @@ void display( void ) {
 		glFlush();
 		glFinish();
 		glutSwapBuffers();
+
+		setFacing();
 
 		drawing_y += 0.5;
 
@@ -181,34 +169,30 @@ void keyboard( unsigned char key, int x, int y ) {
 		drawing_y = 0;
 		break;
 	case 'a':
-		eye -= glm::normalize(glm::cross(point3(-sin(rotationY), 0, -cos(rotationY)), point3(0, 1, 0))) * move_step;
+		eye -= glm::normalize(camera_right) * move_step;
 		drawing_y = 0;
 		break;
 	case 'd':
-		eye += glm::normalize(glm::cross(point3(-sin(rotationY), 0, -cos(rotationY)), point3(0, 1, 0))) * move_step;
+		eye += glm::normalize(camera_right) * move_step;
 		drawing_y = 0;
 		break;
 	case 'q':
 		rotationY += rotate_step;
-		setFacing();
 		drawing_y = 0;
 		break;
 	case 'e':
 		rotationY -= rotate_step;
-		setFacing();
 		drawing_y = 0;
 		break;
 	case 'r':
 		if (rotationX < M_PI / 2) {
 			rotationX += rotate_step;
-			setFacing();
 			drawing_y = 0;
 		}
 		break;
 	case 'f':
 		if (rotationX > -M_PI / 2) {
 			rotationX -= rotate_step;
-			setFacing();
 			drawing_y = 0;
 		}
 		break;
