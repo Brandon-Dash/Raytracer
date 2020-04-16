@@ -78,7 +78,7 @@ public:
 	float radius;
 	Sphere(point3 center, float radius, Material material);
 	float rayhit(point3 e, point3 d, bool exit);
-	void getNormal(point3 &n);
+	virtual void getNormal(point3 &n);
 	void getCentroid(point3& c);
 };
 

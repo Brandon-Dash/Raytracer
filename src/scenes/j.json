@@ -6,9 +6,11 @@
 
   "objects": [
     {
-      "type": "sphere",
+      "type": "bumpsphere",
       "radius": 1.0,
       "position": [ 0, 0, -4 ],
+      "bumpmap": "bump1.bmp",
+      "bumpdepth": 0.2,
       "material": {
         "ambient": [ 0.3, 0.3, 0.3 ],
         "diffuse": [ 1, 0, 0 ],
@@ -17,9 +19,11 @@
       }
     },
     {
-      "type": "sphere",
+      "type": "bumpsphere",
       "radius": 2.5,
       "position": [ 1.5, 1.5, -8.5 ],
+      "bumpmap": "bump2.bmp",
+      "bumpdepth": 1.5,
       "material": {
         "ambient": [ 0.4, 0.4, 0.4 ],
         "diffuse": [ 0.56, 0.24, 0.12 ],

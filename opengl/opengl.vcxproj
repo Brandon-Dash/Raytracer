@@ -85,6 +85,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\src\bump.h" />
     <ClInclude Include="..\src\bvh.h" />
     <ClInclude Include="..\src\common.h" />
     <ClInclude Include="..\src\EasyBMP\EasyBMP.h" />
@@ -100,6 +101,7 @@
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\bump.cpp" />
     <ClCompile Include="..\src\bvh.cpp" />
     <ClCompile Include="..\src\EasyBMP\EasyBMP.cpp" />
     <ClCompile Include="..\src\main.cpp" />

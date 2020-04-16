@@ -5,6 +5,7 @@
 #include "raymath.h"
 #include "bvh.h"
 #include "texturemesh.h"
+#include "bump.h"
 
 #include <iostream>
 #include <fstream>
@@ -155,6 +156,15 @@ void choose_scene(char const *fn) {
 			}
 
 			Objects.push_back(mesh);
+		}
+
+		if (object["type"] == "bumpsphere") {
+			point3 center = vector_to_vec3(object["position"]);
+			float radius = float(object["radius"]);
+			std::string bumpmapfile = object["bumpmap"];
+			float bumpDepth = object["bumpdepth"];
+
+			Objects.push_back(new BumpSphere(center, radius, material, PATH + bumpmapfile, bumpDepth));
 		}
 	}
 
