@@ -63,6 +63,9 @@
     <ClInclude Include="..\src\bump.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\csg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\main.cpp">
@@ -90,6 +93,9 @@
       <Filter>EasyBMP</Filter>
     </ClCompile>
     <ClCompile Include="..\src\bump.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\csg.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
