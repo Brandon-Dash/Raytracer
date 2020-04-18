@@ -67,7 +67,7 @@ public:
 	point3 cachedHitpoint;
 	virtual float rayhit(point3 e, point3 d, bool exit = false) = 0;
 	virtual void getNormal(point3 &n) = 0;
-	virtual void getCentroid(point3& n) = 0;
+	virtual void getCentroid(point3& c) = 0;
 	virtual void lightPoint(point3 e, point3 d, std::vector<Light*> Lights, colour3& colour, int reflectionCount, bool pick);
 	virtual bool transmitRay(point3 inPoint, point3 inVector, point3 inNormal, point3& outPoint, point3& outVector, bool pick);
 };
