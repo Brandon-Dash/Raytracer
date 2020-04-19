@@ -7,7 +7,7 @@
   "objects": [
     {
       "type": "plane",
-      "position": [ 0, -2, 0 ],
+      "position": [ 0, -1, 0 ],
       "normal": [ 0, 1, 0 ],
       "material": {
         "ambient": [ 0.2, 0.2, 0.2 ],
@@ -15,13 +15,22 @@
       }
     },
     {
-      "type": "box",
+      "type": "csgobject",
       "material": {
         "diffuse": [ 0.6, 0.15, 0.35 ],
         "ambient": [ 0.2, 0.2, 0.2 ]
       },
-      "point1": [ -0.5, -0.5, -4.5 ],
-      "point2": [0.5, 0.5, -3.5]
+      "operation": "intersection",
+      "first": {
+        "type": "box",
+        "point1": [ -0.5, -0.5, -2.5 ],
+        "point2": [ 0.5, 0.5, -1.5 ]
+      },
+      "second": {
+        "type": "sphere",
+        "position": [ 0, 0, -2 ],
+        "radius": 0.7
+      }
     }
   ],
 
@@ -39,14 +48,6 @@
       "type": "point",
       "color": [ 0.6, 0.6, 0.0 ],
       "position": [ -1, 8, 1 ]
-    },
-    {
-      "type": "spot",
-      "color": [ 0.2, 0.32, 0.85 ],
-      "position": [ -2, 3.9, 1.5 ],
-      "direction": [ 0.4, -0.8, -1 ],
-      "cutoff": 10,
-      "_comment": "cutoff is half angle of cone, in degrees"
     }
   ]
 }

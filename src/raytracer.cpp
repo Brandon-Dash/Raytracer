@@ -66,6 +66,20 @@ csg_node* create_csgNode(json& nodejson) {
 			float radius = float(nodejson["radius"]);
 			node = new csg_node(new Sphere(center, radius, Material()));
 		}
+		if (nodejson["type"] == "box") {
+			BoundingBox box;
+			point3 p1 = vector_to_vec3(nodejson["point1"]);
+			point3 p2 = vector_to_vec3(nodejson["point2"]);
+			box.minX = std::min(p1.x, p2.x);
+			box.maxX = std::max(p1.x, p2.x);
+			box.minY = std::min(p1.y, p2.y);
+			box.maxY = std::max(p1.y, p2.y);
+			box.minZ = std::min(p1.z, p2.z);
+			box.maxZ = std::max(p1.z, p2.z);
+
+			node = new csg_node(new Box(box, Material()));
+
+		}
 		if (nodejson["type"] == "mesh") {
 			std::vector<json> triangles = nodejson["triangles"];
 
