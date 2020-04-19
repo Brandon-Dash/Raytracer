@@ -8,7 +8,7 @@
 
 // Bounding box
 
-float BoundingBox::intersect(point3 e, point3 d) {
+float BoundingBox::intersect(point3 e, point3 d, bool exit) {
 	// This code is taken from the lecture slide for Kay-Kajiya intersection.
 	// return value -1 means miss, 0 means ray is originating inside the box
 	float tnear = -MAX_T;
@@ -29,10 +29,18 @@ float BoundingBox::intersect(point3 e, point3 d) {
 		if (tfar < 0) return -1;
 	}
 	
-	if (tnear < 0)
-		return 0;
-	else
-		return tnear;
+	if (!exit) {
+		if (tnear < 0)
+			return 0;
+		else
+			return tnear;
+	}
+	else {
+		if (tfar < 0)
+			return 0;
+		else
+			return tfar;
+	}
 }
 
 /****************************************************************************/
@@ -314,6 +322,48 @@ void Mesh::setBox() {
 		boundingBox.maxY = std::max(boundingBox.maxY, triangles[i]->boundingBox.maxY);
 		boundingBox.maxZ = std::max(boundingBox.maxZ, triangles[i]->boundingBox.maxZ);
 	}
+}
+
+/****************************************************************************/
+
+// Box
+
+Box::Box(BoundingBox box, Material material) {
+	type = "box";
+	this->material = material;
+	boundingBox = box;
+}
+
+float Box::rayhit(point3 e, point3 d, bool exit) {
+	float t = boundingBox.intersect(e, d, exit);
+
+	if (t < 0)
+		return 0;
+	else {
+		cachedHitpoint = e + t * d;
+		return t;
+	}
+}
+
+void Box::getNormal(point3& n) {
+	if (abs(cachedHitpoint.x - boundingBox.minX) < 1e-5)
+		n = point3(-1, 0, 0);
+	else if (abs(cachedHitpoint.x - boundingBox.maxX) < 1e-5)
+		n = point3(1, 0, 0);
+	else if (abs(cachedHitpoint.y - boundingBox.minY) < 1e-5)
+		n = point3(0, -1, 0);
+	else if (abs(cachedHitpoint.y - boundingBox.maxY) < 1e-5)
+		n = point3(0, 1, 0);
+	else if (abs(cachedHitpoint.z - boundingBox.minZ) < 1e-5)
+		n = point3(0, 0, -1);
+	else if (abs(cachedHitpoint.z - boundingBox.maxZ) < 1e-5)
+		n = point3(0, 0, 1);
+}
+
+void Box::getCentroid(point3& c) {
+	c.x = (boundingBox.minX + boundingBox.maxX) / 2;
+	c.y = (boundingBox.minY + boundingBox.maxY) / 2;
+	c.z = (boundingBox.minZ + boundingBox.maxZ) / 2;
 }
 
 /****************************************************************************/

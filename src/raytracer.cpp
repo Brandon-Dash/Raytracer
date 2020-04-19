@@ -224,6 +224,20 @@ void choose_scene(char const *fn) {
 
 			Objects.push_back(newobject);
 		}
+
+		if (object["type"] == "box") {
+			BoundingBox box;
+			point3 p1 = vector_to_vec3(object["point1"]);
+			point3 p2 = vector_to_vec3(object["point2"]);
+			box.minX = std::min(p1.x, p2.x);
+			box.maxX = std::max(p1.x, p2.x);
+			box.minY = std::min(p1.y, p2.y);
+			box.maxY = std::max(p1.y, p2.y);
+			box.minZ = std::min(p1.z, p2.z);
+			box.maxZ = std::max(p1.z, p2.z);
+
+			Objects.push_back(new Box(box, material));
+		}
 	}
 
 	json lights = scene["lights"];

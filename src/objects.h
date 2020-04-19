@@ -15,7 +15,7 @@ class Mesh;
 
 struct BoundingBox {
 	float minX, maxX, minY, maxY, minZ, maxZ;
-	float intersect(point3 e, point3 d);
+	float intersect(point3 e, point3 d, bool exit = false);
 };
 
 struct Material {
@@ -115,6 +115,14 @@ public:
 	void getNormal(point3 &n);
 	void getCentroid(point3& c);
 	void setBox();
+};
+
+class Box : public Object {
+public:
+	Box(BoundingBox box, Material material);
+	float rayhit(point3 e, point3 d, bool exit);
+	void getNormal(point3& n);
+	void getCentroid(point3& c);
 };
 
 #endif
