@@ -57,7 +57,7 @@ void csg_node::getBox(BoundingBox& box) {
 	if (op == NoOp)
 		box = object->boundingBox;
 
-	if (op == Difference)
+	else if (op == Difference)
 		first->getBox(box);
 
 	else {

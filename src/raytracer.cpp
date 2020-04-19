@@ -6,6 +6,7 @@
 #include "bvh.h"
 #include "texturemesh.h"
 #include "bump.h"
+#include "csg.h"
 
 #include <iostream>
 #include <fstream>
@@ -39,6 +40,53 @@ glm::vec3 vector_to_vec3(const std::vector<float> &v) {
 
 glm::vec2 vector_to_vec2(const std::vector<float>& v) {
 	return glm::vec2(v[0], v[1]);
+}
+
+csg_node* create_csgNode(json& nodejson) {
+	csg_node* node;
+
+	if (nodejson.find("operation") != nodejson.end()) {
+		if (nodejson["operation"] == "union")
+			node = new csg_node(Union);
+		if (nodejson["operation"] == "intersection")
+			node = new csg_node(Intersection);
+		if (nodejson["operation"] == "difference")
+			node = new csg_node(Difference);
+
+		json& first = nodejson["first"];
+		json& second = nodejson["second"];
+
+		node->first = create_csgNode(first);
+		node->second = create_csgNode(second);
+	}
+
+	else {
+		if (nodejson["type"] == "sphere") {
+			point3 center = vector_to_vec3(nodejson["position"]);
+			float radius = float(nodejson["radius"]);
+			node = new csg_node(new Sphere(center, radius, Material()));
+		}
+		if (nodejson["type"] == "mesh") {
+			std::vector<json> triangles = nodejson["triangles"];
+
+			Mesh* mesh = new Mesh(Material());
+
+			for (int i = 0; i < triangles.size(); i++) {
+				std::vector<json> trianglejson = triangles[i];
+
+				point3 p0 = vector_to_vec3(trianglejson[0]);
+				point3 p1 = vector_to_vec3(trianglejson[1]);
+				point3 p2 = vector_to_vec3(trianglejson[2]);
+
+				mesh->triangles.push_back(new Triangle(mesh, p0, p1, p2, Material()));
+			}
+
+			mesh->setBox();
+
+			node = new csg_node(mesh);
+		}
+	}
+	return node;
 }
 
 /****************************************************************************/
@@ -130,6 +178,8 @@ void choose_scene(char const *fn) {
 				mesh->triangles.push_back(new Triangle(mesh, p0, p1, p2, material));
 			}
 
+			mesh->setBox();
+
 			Objects.push_back(mesh);
 		}
 
@@ -165,6 +215,14 @@ void choose_scene(char const *fn) {
 			float bumpDepth = object["bumpdepth"];
 
 			Objects.push_back(new BumpSphere(center, radius, material, PATH + bumpmapfile, bumpDepth));
+		}
+
+		if (object["type"] == "csgobject") {
+			csgObject* newobject = new csgObject(material);
+			newobject->root = create_csgNode(object);
+			newobject->setBox();
+
+			Objects.push_back(newobject);
 		}
 	}
 

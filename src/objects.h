@@ -114,6 +114,7 @@ public:
 	float rayhit(point3 e, point3 d, bool exit);
 	void getNormal(point3 &n);
 	void getCentroid(point3& c);
+	void setBox();
 };
 
 #endif

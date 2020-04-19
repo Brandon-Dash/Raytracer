@@ -304,6 +304,18 @@ void Mesh::getCentroid(point3& c) {
 	throw std::exception("Not implemented.");
 }
 
+void Mesh::setBox() {
+	boundingBox = triangles[0]->boundingBox;
+	for (int i = 1; i < triangles.size(); i++) {
+		boundingBox.minX = std::min(boundingBox.minX, triangles[i]->boundingBox.minX);
+		boundingBox.minY = std::min(boundingBox.minY, triangles[i]->boundingBox.minY);
+		boundingBox.minZ = std::min(boundingBox.minZ, triangles[i]->boundingBox.minZ);
+		boundingBox.maxX = std::max(boundingBox.maxX, triangles[i]->boundingBox.maxX);
+		boundingBox.maxY = std::max(boundingBox.maxY, triangles[i]->boundingBox.maxY);
+		boundingBox.maxZ = std::max(boundingBox.maxZ, triangles[i]->boundingBox.maxZ);
+	}
+}
+
 /****************************************************************************/
 
 // Lights
