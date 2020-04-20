@@ -28,30 +28,35 @@ struct Material {
 	float refraction = 0;
 };
 
-struct Light {
+class Light {
+public:
 	std::string type;
 	colour3 colour;
 	virtual void lightPoint(point3 p, point3 N, point3 V, Material material, colour3& pointColour) = 0;
 };
 
-struct Ambient : Light {
+class Ambient : public Light {
+public:
 	Ambient(colour3 colour);
 	void lightPoint(point3 p, point3 N, point3 V, Material material, colour3& pointColour);
 };
 
-struct Directional : Light {
+class Directional : public Light {
+public:
 	point3 direction;
 	Directional(colour3 colour, point3 direction);
 	void lightPoint(point3 p, point3 N, point3 V, Material material, colour3& pointColour);
 };
 
-struct Point : Light {
+class Point : public Light {
+public:
 	point3 position;
 	Point(colour3 colour, point3 position);
 	void lightPoint(point3 p, point3 N, point3 V, Material material, colour3& pointColour);
 };
 
-struct Spot : Light {
+class Spot : public Light {
+public:
 	point3 position;
 	point3 direction;
 	float cutoff;
