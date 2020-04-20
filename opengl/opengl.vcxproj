@@ -85,6 +85,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\src\arealight.h" />
     <ClInclude Include="..\src\bump.h" />
     <ClInclude Include="..\src\bvh.h" />
     <ClInclude Include="..\src\common.h" />
@@ -102,6 +103,7 @@
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\arealight.cpp" />
     <ClCompile Include="..\src\bump.cpp" />
     <ClCompile Include="..\src\bvh.cpp" />
     <ClCompile Include="..\src\csg.cpp" />
