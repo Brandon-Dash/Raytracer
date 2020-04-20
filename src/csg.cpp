@@ -121,12 +121,14 @@ void csg_node::setIntervals(point3 e, point3 d) {
 		int count2 = 0;
 
 		if (op == Union) {
+			// list merge operation, but if two intervals overlap they are combined into a single interval
 			if (list1.size() == 0)
 				intervalList = list2;
 			else if (list2.size() == 0)
 				intervalList = list1;
 			else {
 				interval current;
+				// select starting interval
 				if (compareIntervals(list1[0], list2[0])) {
 					current = list1[0];
 					count1++;
@@ -150,7 +152,7 @@ void csg_node::setIntervals(point3 e, point3 d) {
 
 					if (add[0].t < current[1].t) {
 						// combine with current interval
-						current[1] = add[1];
+						current[1] = std::max(current[1], add[1], compareIntersections);
 					}
 					else {
 						// start a new interval
@@ -162,7 +164,7 @@ void csg_node::setIntervals(point3 e, point3 d) {
 				// when one list is empty, finish off the other list
 				while (count1 < list1.size()) {
 					if (list1[count1][0].t < current[1].t) {
-						current[1] = list1[count1][1];
+						current[1] = std::max(current[1], list1[count1][1], compareIntersections);
 					}
 					else {
 						intervalList.push_back(current);
@@ -172,7 +174,7 @@ void csg_node::setIntervals(point3 e, point3 d) {
 				}
 				while (count2 < list2.size()) {
 					if (list2[count2][0].t < current[1].t) {
-						current[1] = list2[count2][1];
+						current[1] = std::max(current[1], list2[count2][1], compareIntersections);
 					}
 					else {
 						intervalList.push_back(current);
@@ -180,10 +182,13 @@ void csg_node::setIntervals(point3 e, point3 d) {
 					}
 					count2++;
 				}
+				// add final interval
+				intervalList.push_back(current);
 			}
 		}
 
 		if (op == Intersection) {
+			// for every pair of intervals, keep the interval in which they overlap
 			for (count1 = 0; count1 < list1.size(); count1++) {
 				for (count2 = 0; count2 < list2.size(); count2++) {
 					if (list1[count1][0].t < list2[count2][1].t && list1[count1][1].t > list2[count2][0].t) {
@@ -195,6 +200,7 @@ void csg_node::setIntervals(point3 e, point3 d) {
 		}
 
 		if (op == Difference) {
+			// for each interval in list1, "cut away" parts that overlap with intervals from list2, creating new interval objects as necessary
 			intersection current;
 
 			for (count1 = 0; count1 < list1.size(); count1++) {
