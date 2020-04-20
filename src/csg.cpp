@@ -119,61 +119,67 @@ void csg_node::setIntervals(point3 e, point3 d) {
 		std::vector<interval> list2 = second->intervalList;
 		int count1 = 0;
 		int count2 = 0;
-		int intervals = 0;
 
 		if (op == Union) {
-			if (list1[count1][0].t < list2[count2][0].t) {
-				intervalList.push_back(list1[count1]);
-				count1++;
-				intervals++;
-			}
+			if (list1.size() == 0)
+				intervalList = list2;
+			else if (list2.size() == 0)
+				intervalList = list1;
 			else {
-				intervalList.push_back(list2[count2]);
-				count2++;
-				intervals++;
-			}
-
-			while (count1 < list1.size() && count2 < list2.size()) {
-				if (list1[count1][0].t < list2[count2][0].t) {
-					if (list1[count1][0].t < intervalList[intervals - 1][1].t) {
-						intervalList[intervals - 1][1] = list1[count1][1];
-					}
-					else {
-						intervalList.push_back(list1[count1]);
-						intervals++;
-					}
+				interval current;
+				if (compareIntervals(list1[0], list2[0])) {
+					current = list1[0];
 					count1++;
 				}
 				else {
-					if (list2[count2][0].t < intervalList[intervals - 1][1].t) {
-						intervalList[intervals - 1][1] = list2[count2][1];
+					current = list2[0];
+					count2++;
+				}
+
+				while (count1 < list1.size() && count2 < list2.size()) {
+					interval add;
+					// select next interval to add
+					if (compareIntervals(list1[count1], list2[count2])) {
+						add = list1[count1];
+						count1++;
 					}
 					else {
-						intervalList.push_back(list2[count2]);
-						intervals++;
+						add = list2[count2];
+						count2++;
+					}
+
+					if (add[0].t < current[1].t) {
+						// combine with current interval
+						current[1] = add[1];
+					}
+					else {
+						// start a new interval
+						intervalList.push_back(current);
+						current = add;
+					}
+				}
+
+				// when one list is empty, finish off the other list
+				while (count1 < list1.size()) {
+					if (list1[count1][0].t < current[1].t) {
+						current[1] = list1[count1][1];
+					}
+					else {
+						intervalList.push_back(current);
+						current = list1[count1];
+					}
+					count1++;
+				}
+				while (count2 < list2.size()) {
+					if (list2[count2][0].t < current[1].t) {
+						current[1] = list2[count2][1];
+					}
+					else {
+						intervalList.push_back(current);
+						current = list2[count2];
 					}
 					count2++;
 				}
-			}
-			while (count1 < list1.size()) {
-				if (list1[count1][0].t < intervalList[intervals - 1][1].t) {
-					intervalList[intervals - 1][1] = list1[count1][1];
-				}
-				else {
-					intervalList.push_back(list1[count1]);
-					intervals++;
-				}
-				count1++;
-			}
-			while (count2 < list2.size()) {
-				if (list2[count2][0].t < intervalList[intervals - 1][1].t) {
-					intervalList[intervals - 1][1] = list2[count2][1];
-				}
-				else {
-					intervalList.push_back(list2[count2]);
-					intervals++;
-				}
-				count2++;
 			}
 		}
 
