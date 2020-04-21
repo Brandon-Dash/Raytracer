@@ -6,7 +6,6 @@
 
 void AreaLight::lightPoint(point3 p, point3 N, point3 V, Material material, colour3& pointColour) {
 	colour3 totalColour = colour3(0.0, 0.0, 0.0);
-
 	for (int i = 0; i < numSamples; i++) {
 		point3 lightPos;
 		randomPoint(lightPos);
@@ -42,6 +41,26 @@ void RectangularAreaLight::randomPoint(point3& p) {
 	p = position + planeX * xDisplacement + planeY * yDisplacement;
 }
 
+void RectangularAreaLight::preparePoints() {
+	step = 1.0 / sqrt(numSamples);
+	x = 0.5 * step;
+	y = 0.5 * step;
+}
+
+void RectangularAreaLight::nextPoint(point3& p) {
+	float xDisplacement = (x - 0.5) * width;
+	float yDisplacement = (y - 0.5) * height;
+
+	p = position + planeX * xDisplacement + planeY * yDisplacement;
+
+	if (x < 1.0)
+		x += step;
+	else {
+		x = 0.5 * step;
+		y += step;
+	}
+}
+
 CircularAreaLight::CircularAreaLight(colour3 colour, point3 position, point3 normal, float radius, int numSamples) {
 	type = "circularAreaLight";
 	this->colour = colour;
@@ -65,4 +84,12 @@ void CircularAreaLight::randomPoint(point3& p) {
 	float yDisplacement = displacement * sin(angle);
 
 	p = position + planeX * xDisplacement + planeY * yDisplacement;
+}
+
+void CircularAreaLight::preparePoints() {
+	return;
+}
+
+void CircularAreaLight::nextPoint(point3& p) {
+	randomPoint(p);
 }
