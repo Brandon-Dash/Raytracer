@@ -7,6 +7,7 @@
 #include "texturemesh.h"
 #include "bump.h"
 #include "csg.h"
+#include "arealight.h"
 
 #include <iostream>
 #include <fstream>
@@ -279,6 +280,22 @@ void choose_scene(char const *fn) {
 			point3 direction = vector_to_vec3(light["direction"]);
 			float cutoff = float(light["cutoff"]);
 			Lights.push_back(new Spot(colour, position, direction, cutoff));
+		}
+		if (light["type"] == "rectangular") {
+			point3 position = vector_to_vec3(light["position"]);
+			point3 normal = vector_to_vec3(light["normal"]);
+			float width = light["width"];
+			float height = light["height"];
+			point3 orientation = vector_to_vec3(light["orientation"]);
+			int numSamples = light["samples"];
+			Lights.push_back(new RectangularAreaLight(colour, position, normal, width, height, orientation, numSamples));
+		}
+		if (light["type"] == "circular") {
+			point3 position = vector_to_vec3(light["position"]);
+			point3 normal = vector_to_vec3(light["normal"]);
+			float radius = light["radius"];
+			int numSamples = light["samples"];
+			Lights.push_back(new CircularAreaLight(colour, position, normal, radius, numSamples));
 		}
 	}
 
