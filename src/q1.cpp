@@ -43,11 +43,24 @@ void setFacing() {
 	camera_up = glm::normalize(glm::cross(camera_right, facing)) * h;
 }
 
+// added variable for anti-aliasing
+bool antialias = false;
+
 //----------------------------------------------------------------------------
 
 point3 s(int x, int y) {
-   
 	return eye + facing + camera_right * (2 * ((x + 0.5f) / vp_width - 0.5f)) + camera_up * (2 * ((y + 0.5f) / vp_height - 0.5f));
+}
+
+point3 s_aa(int x, int y, int num) {
+	if (num == 0)
+		return eye + facing + camera_right * (2 * ((x + 0.25f) / vp_width - 0.5f)) + camera_up * (2 * ((y + 0.25f) / vp_height - 0.5f));
+	if (num == 1)
+		return eye + facing + camera_right * (2 * ((x + 0.75f) / vp_width - 0.5f)) + camera_up * (2 * ((y + 0.25f) / vp_height - 0.5f));
+	if (num == 2)
+		return eye + facing + camera_right * (2 * ((x + 0.25f) / vp_width - 0.5f)) + camera_up * (2 * ((y + 0.75f) / vp_height - 0.5f));
+	else
+		return eye + facing + camera_right * (2 * ((x + 0.75f) / vp_width - 0.5f)) + camera_up * (2 * ((y + 0.75f) / vp_height - 0.5f));
 }
 
 //----------------------------------------------------------------------------
@@ -115,8 +128,21 @@ void display( void ) {
 		if (drawing_y == int(drawing_y)) {
 
 			for (int x = 0; x < vp_width; x++) {
-				if (!trace(eye, s(x, y), texture[x], false)) {
-					texture[x] = background_colour;
+				if (antialias) {
+					colour3 totalColour(0.0, 0.0, 0.0);
+					for (int i = 0; i < 4; i++) {
+						colour3 colour;
+						if (!trace(eye, s_aa(x, y, i), colour, false)) {
+							colour = background_colour;
+						}
+						totalColour += colour;
+					}
+					texture[x] = totalColour / 4.0f;
+				}
+				else {
+					if (!trace(eye, s(x, y), texture[x], false)) {
+						texture[x] = background_colour;
+					}
 				}
 			}
 
@@ -207,6 +233,15 @@ void keyboard( unsigned char key, int x, int y ) {
 	case 'p':
 		std::cout << "camera: (" << eye.x << ", " << eye.y << ", " << eye.z << ")" << std::endl;
 		std::cout << "facing: <" << facing.x << ", " << facing.y << ", " << facing.z << ">" << std::endl << std::endl;
+		break;
+	// anti-aliasing toggle
+	case 'l':
+		antialias = !antialias;
+		if (antialias)
+			std::cout << "Anti-aliasing ON" << std::endl;
+		else
+			std::cout << "Anti-aliasing OFF" << std::endl;
+		drawing_y = 0;
 		break;
 	}
 }
