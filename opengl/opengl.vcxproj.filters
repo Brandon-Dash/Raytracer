@@ -148,5 +148,8 @@
     <None Include="..\src\scenes\l.json">
       <Filter>Scenes</Filter>
     </None>
+    <None Include="..\src\scenes\m.json">
+      <Filter>Scenes</Filter>
+    </None>
   </ItemGroup>
 </Project>

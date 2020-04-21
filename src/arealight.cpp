@@ -19,7 +19,7 @@ void AreaLight::lightPoint(point3 p, point3 N, point3 V, Material material, colo
 			addSpecular(I, material.specular, material.shininess, N, L, V, totalColour);
 		}
 	}
-	pointColour = totalColour / float(numSamples);
+	pointColour += totalColour / float(numSamples);
 }
 
 RectangularAreaLight::RectangularAreaLight(colour3 colour, point3 position, point3 normal, float width, float height, point3 orientation, int numSamples) {
@@ -36,8 +36,8 @@ RectangularAreaLight::RectangularAreaLight(colour3 colour, point3 position, poin
 }
 
 void RectangularAreaLight::randomPoint(point3& p) {
-	float xDisplacement = (2 * RAND - 1) * width;
-	float yDisplacement = (2 * RAND - 1) * height;
+	float xDisplacement = (RAND - 0.5) * width;
+	float yDisplacement = (RAND - 0.5) * height;
 
 	p = position + planeX * xDisplacement + planeY * yDisplacement;
 }
@@ -51,6 +51,9 @@ CircularAreaLight::CircularAreaLight(colour3 colour, point3 position, point3 nor
 	this->numSamples = numSamples;
 
 	planeX = glm::normalize(glm::cross(point3(0, 1, 0), normal));
+	if (isnan(planeX.x))
+		planeX = glm::normalize(glm::cross(point3(0, 0, 1), normal));
+
 	planeY = glm::normalize(glm::cross(normal, planeX));
 }
 
